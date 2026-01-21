@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verificador Patentes - Quintay</title>
+  
+  <!-- Meta para PWA -->
+  <meta name="theme-color" content="#0A2F4F">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="https://img.icons8.com/ios-filled/50/00E0D0/parking.png"> <!-- Icono opcional -->
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0A2F4F;
+      color: white;
+      margin: 0;
+      padding: 20px;
+      text-align: center;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    h1 { color: #00E0D0; }
+    input {
+      padding: 15px;
+      font-size: 20px;
+      width: 90%;
+      max-width: 400px;
+      margin: 20px 0;
+      border: 2px solid #00C853;
+      border-radius: 8px;
+      background: #112240;
+      color: white;
+      text-transform: uppercase;
+    }
+    button {
+      padding: 15px 40px;
+      font-size: 20px;
+      background: #00C853;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover { background: #00B140; }
+    #resultado {
+      margin-top: 30px;
+      font-size: 24px;
+      font-weight: bold;
+      min-height: 50px;
+    }
+    #loading { display: none; color: #00E0D0; font-size: 18px; }
+  </style>
+</head>
+<body>
+
+  <h1>Verificador Patentes</h1>
+  <input type="text" id="patente" placeholder="Ingresa patente (ej: ABC123)" maxlength="10">
+  <button onclick="verificar()">Verificar</button>
+  <div id="loading">Consultando...</div>
+  <div id="resultado"></div>
+
+  <script>
+    const patenteInput = document.getElementById('patente');
+    const resultadoDiv = document.getElementById('resultado');
+    const loadingDiv = document.getElementById('loading');
+
+    async function verificar() {
+      const patente = patenteInput.value.trim().toUpperCase();
+      if (!patente) {
+        resultadoDiv.innerHTML = '<span style="color:red;">Ingresa una patente</span>';
+        return;
+      }
+
+      loadingDiv.style.display = 'block';
+      resultadoDiv.innerHTML = '';
+
+      try {
+        // CAMBIA ESTA URL POR TU API REAL (Replit, Vercel, Firebase, etc.)
+        const response = await fetch(`https://tu-api-gratis.com/check_patente?patente=${patente}`);
+        if (!response.ok) throw new Error('Error en servidor');
+        
+        const data = await response.json();
+        resultadoDiv.innerHTML = `<span style="color:#00E0D0;">${data.estado}</span>`;
+      } catch (error) {
+        resultadoDiv.innerHTML = '<span style="color:red;">Error de conexión</span>';
+      } finally {
+        loadingDiv.style.display = 'none';
+      }
+    }
+
+    // Permitir Enter para verificar
+    patenteInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') verificar();
+    });
+  </script>
+
+  <!-- Manifest para PWA -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('Service Worker registrado'))
+          .catch(err => console.log('Error Service Worker:', err));
+      });
+    }
+  </script>
+</body>
+</html>
