@@ -3,92 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>QUINTAY - TERRENO</title>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    <style>
-        body { font-family: sans-serif; background-color: #0A2F4F; color: white; text-align: center; margin: 0; padding: 20px; }
-        input { width: 100%; padding: 20px; font-size: 2rem; border-radius: 10px; border: none; margin-bottom: 20px; box-sizing: border-box; text-transform: uppercase; font-weight: bold; }
-        button { width: 100%; padding: 20px; font-size: 1.5rem; background: #00E0D0; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
-        
-        /* Pantalla de Alerta */
-        #pantalla-resultado {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            flex-direction: column; justify-content: center; align-items: center; z-index: 100;
-        }
-        .res-estado { font-size: 4rem; font-weight: bold; margin: 0; }
-        .res-tipo { font-size: 2rem; margin: 10px 0; }
-        .btn-ok { margin-top: 40px; padding: 20px 60px; font-size: 1.5rem; background: rgba(0,0,0,0.3); color: white; border: 2px solid white; border-radius: 50px; }
-    </style>
+    <title>Quintay Terreno V7</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 </head>
-<body>
+<body style="background-color: #0A2F4F; color: white; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; text-align: center;">
 
-    <h2>VIVE QUINTAY</h2>
-    <input type="text" id="patente" placeholder="PATENTE" autocomplete="off">
-    <button onclick="verificar()">VERIFICAR</button>
+    <div style="margin-bottom: 30px;">
+        <h2 style="color: #00E0D0; margin-bottom: 5px; letter-spacing: 2px;">VIVE QUINTAY</h2>
+        <span style="background: #0D3B5C; padding: 5px 15px; border-radius: 20px; font-size: 0.8rem;">V7 TERRENO</span>
+    </div>
 
-    <div id="pantalla-resultado">
-        <p class="res-estado" id="res-estado"></p>
-        <p class="res-tipo" id="res-tipo"></p>
-        <p id="res-hora" style="font-size: 1.2rem;"></p>
-        <button class="btn-ok" onclick="cerrar()">OK</button>
+    <div style="margin-bottom: 20px;">
+        <input type="text" id="inputPatente" placeholder="BUSCAR PATENTE" 
+               style="width: 100%; box-sizing: border-box; padding: 18px; font-size: 1.5rem; border-radius: 12px; border: 2px solid #00E0D0; text-align: center; text-transform: uppercase; background: #fdfdfd; color: #333;">
+        
+        <button onclick="verificarPatente()" 
+                style="width: 100%; background: #2196F3; color: white; padding: 18px; border: none; border-radius: 12px; margin-top: 15px; font-weight: bold; font-size: 1.2rem;">
+            CONSULTAR SISTEMA
+        </button>
+    </div>
+
+    <hr style="border: 0.5px solid #0D3B5C; margin: 30px 0;">
+
+    <div id="display-resultado" style="margin-bottom: 20px;"></div>
+
+    <div id="registro-container" style="display: none; background: #0D3B5C; padding: 25px; border-radius: 20px; border: 2px solid #FF6B35;">
+        <p style="margin: 0 0 15px 0; color: #FFB300; font-weight: bold;">NO REGISTRADO</p>
+        <input type="text" id="patenteNueva" 
+               style="width: 100%; box-sizing: border-box; padding: 12px; margin-bottom: 20px; border-radius: 8px; border: none; font-size: 1.4rem; text-align: center; text-transform: uppercase; font-weight: bold;">
+
+        <button onclick="accionRegistrar()" 
+                style="width: 100%; background: #FF6B35; color: white; padding: 20px; border: none; border-radius: 12px; font-weight: bold; font-size: 1.1rem;">
+            REGISTRAR INGRESO MINUTO
+        </button>
     </div>
 
     <script>
-        // CONFIGURACIÓN FIREBASE (Copia tus datos exactos aquí)
+        // CONFIGURACION INTEGRADA
         const firebaseConfig = {
-            apiKey: "TU_API_KEY",
-            authDomain: "TU_PROYECTO.firebaseapp.com",
-            projectId: "TU_PROYECTO_ID",
-            storageBucket: "TU_PROYECTO.appspot.com",
-            messagingSenderId: "TU_SENDER_ID",
-            appId: "TU_APP_ID"
+            projectId: "vive-quintay-spa",
+            authDomain: "vive-quintay-spa.firebaseapp.com",
+            storageBucket: "vive-quintay-spa.appspot.com",
         };
 
-        firebase.initializeApp(firebaseConfig);
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
         const db = firebase.firestore();
 
-        function verificar() {
-            const val = document.getElementById('patente').value.trim().toUpperCase().replace(/-/g, "");
-            if (!val) return;
+        async function verificarPatente() {
+            const rawInput = document.getElementById("inputPatente").value.toUpperCase().trim();
+            const patente = rawInput.replace(/-/g, "").replace(/\s+/g, "");
+            const display = document.getElementById("display-resultado");
+            const regContainer = document.getElementById("registro-container");
+            const patenteNuevaInput = document.getElementById("patenteNueva");
 
-            // EL CAMBIO CLAVE: usamos .doc(val).get()
-            db.collection("activos").doc(val).get().then((doc) => {
+            if (!patente) return;
+
+            try {
+                const doc = await db.collection("activos").doc(patente).get();
                 if (doc.exists) {
                     const data = doc.data();
-                    lanzarAlerta(data.tipo, data.hora);
+                    regContainer.style.display = "none";
+                    display.innerHTML = `
+                        <div style="background: #00C853; padding: 20px; border-radius: 15px; border: 2px solid white;">
+                            <h1 style="margin:0;">REGISTRADO</h1>
+                            <p>Ingreso: ${data.hora}</p>
+                            <p>Tipo: ${data.tipo}</p>
+                        </div>`;
                 } else {
-                    alert("Patente no encontrada");
+                    display.innerHTML = `<h1 style="color: #D32F2F;">NO REGISTRADO</h1>`;
+                    regContainer.style.display = "block";
+                    patenteNuevaInput.value = patente;
                 }
-            }).catch(e => alert("Error: " + e));
-        }
-
-        function lanzarAlerta(tipo, hora) {
-            const p = document.getElementById('pantalla-resultado');
-            const estado = document.getElementById('res-estado');
-            const txtTipo = document.getElementById('res-tipo');
-            
-            if (tipo === "Ticket por Minuto") {
-                p.style.backgroundColor = "#FF9800"; // NARANJA
-                p.style.color = "black";
-                estado.innerText = "PENDIENTE";
-                txtTipo.innerText = "TICKET MINUTO";
-                if ("vibrate" in navigator) navigator.vibrate([400, 100, 400]);
-            } else {
-                p.style.backgroundColor = "#2E7D32"; // VERDE
-                p.style.color = "white";
-                estado.innerText = "PAGADO";
-                txtTipo.innerText = "PASE DIARIO";
-                if ("vibrate" in navigator) navigator.vibrate(200);
+            } catch (e) {
+                display.innerHTML = "Error de conexión.";
             }
-            
-            document.getElementById('res-hora').innerText = "Ingreso: " + hora;
-            p.style.display = "flex";
         }
 
-        function cerrar() {
-            document.getElementById('pantalla-resultado').style.display = "none";
-            document.getElementById('patente').value = "";
+        async function accionRegistrar() {
+            const patente = document.getElementById("patenteNueva").value.toUpperCase().trim();
+            const display = document.getElementById("display-resultado");
+            const regContainer = document.getElementById("registro-container");
+
+            if (!patente) return;
+
+            const ahora = new Date();
+            const hora = ahora.getHours().toString().padStart(2, '0') + ":" + 
+                         ahora.getMinutes().toString().padStart(2, '0') + ":" + 
+                         ahora.getSeconds().toString().padStart(2, '0');
+            const fecha = ahora.getDate().toString().padStart(2, '0') + "-" + 
+                          (ahora.getMonth() + 1).toString().padStart(2, '0') + "-" + 
+                          ahora.getFullYear();
+
+            try {
+                await db.collection("activos").doc(patente).set({
+                    patente: patente,
+                    tipo: "Ticket por Minuto",
+                    hora: hora,
+                    fecha: fecha,
+                    status: "Activo"
+                });
+                alert("¡Registrado!");
+                regContainer.style.display = "none";
+                display.innerHTML = `<h1 style="color: #00C853;">REGISTRADO EXITOSAMENTE</h1>`;
+                document.getElementById("inputPatente").value = "";
+            } catch (e) {
+                alert("Error al guardar.");
+            }
         }
     </script>
 </body>
