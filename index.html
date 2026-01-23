@@ -3,113 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SISTEMA QUINTAY - TERRENO</title>
+    <title>QUINTAY - TERRENO</title>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <style>
-        body {
-            font-family: 'Arial', sans-serif;
-            background-color: #0A2F4F;
-            color: white;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        .header {
-            margin-top: 30px;
-            text-align: center;
-            font-weight: bold;
-            letter-spacing: 2px;
-        }
-
-        .container {
-            width: 90%;
-            margin-top: 20px;
-        }
-
-        input {
-            width: 100%;
-            padding: 20px;
-            font-size: 2.2rem;
-            text-align: center;
-            border-radius: 12px;
-            border: none;
-            margin-bottom: 20px;
-            box-sizing: border-box;
-            text-transform: uppercase;
-            font-weight: bold;
-        }
-
-        .btn-verificar {
-            width: 100%;
-            padding: 20px;
-            font-size: 1.5rem;
-            font-weight: bold;
-            border: none;
-            border-radius: 12px;
-            background-color: #00E0D0;
-            color: #0A2F4F;
-            cursor: pointer;
-        }
-
-        /* PANTALLA DE RESULTADO */
+        body { font-family: sans-serif; background-color: #0A2F4F; color: white; text-align: center; margin: 0; padding: 20px; }
+        input { width: 100%; padding: 20px; font-size: 2rem; border-radius: 10px; border: none; margin-bottom: 20px; box-sizing: border-box; text-transform: uppercase; font-weight: bold; }
+        button { width: 100%; padding: 20px; font-size: 1.5rem; background: #00E0D0; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        
+        /* Pantalla de Alerta */
         #pantalla-resultado {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 1000;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            padding: 20px;
-            box-sizing: border-box;
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            flex-direction: column; justify-content: center; align-items: center; z-index: 100;
         }
-
-        .res-estado { font-size: 3.5rem; font-weight: 900; margin: 0; }
-        .res-tipo { font-size: 1.8rem; font-weight: bold; margin: 15px 0; }
-        .res-hora { font-size: 1.5rem; opacity: 0.9; }
-
-        .btn-cerrar {
-            margin-top: 40px;
-            padding: 20px 70px;
-            font-size: 1.5rem;
-            background: rgba(0,0,0,0.3);
-            color: white;
-            border: 2px solid white;
-            border-radius: 50px;
-            font-weight: bold;
-        }
+        .res-estado { font-size: 4rem; font-weight: bold; margin: 0; }
+        .res-tipo { font-size: 2rem; margin: 10px 0; }
+        .btn-ok { margin-top: 40px; padding: 20px 60px; font-size: 1.5rem; background: rgba(0,0,0,0.3); color: white; border: 2px solid white; border-radius: 50px; }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <h1>VIVE QUINTAY</h1>
-        <p>CONTROL DE TERRENO</p>
-    </div>
-
-    <div class="container">
-        <input type="text" id="patente" placeholder="INGRESAR PATENTE" autocomplete="off">
-        <button class="btn-verificar" onclick="verificarPatente()">VERIFICAR ESTADO</button>
-    </div>
+    <h2>VIVE QUINTAY</h2>
+    <input type="text" id="patente" placeholder="PATENTE" autocomplete="off">
+    <button onclick="verificar()">VERIFICAR</button>
 
     <div id="pantalla-resultado">
         <p class="res-estado" id="res-estado"></p>
         <p class="res-tipo" id="res-tipo"></p>
-        <p class="res-hora" id="res-hora"></p>
-        <button class="btn-cerrar" onclick="cerrar()">ENTENDIDO</button>
+        <p id="res-hora" style="font-size: 1.2rem;"></p>
+        <button class="btn-ok" onclick="cerrar()">OK</button>
     </div>
 
     <script>
-        // CONFIGURACIÓN FIREBASE
+        // CONFIGURACIÓN FIREBASE (Copia tus datos exactos aquí)
         const firebaseConfig = {
             apiKey: "TU_API_KEY",
             authDomain: "TU_PROYECTO.firebaseapp.com",
@@ -122,60 +48,47 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        function verificarPatente() {
-            const input = document.getElementById('patente');
-            const patente = input.value.trim().toUpperCase().replace(/-/g, "");
+        function verificar() {
+            const val = document.getElementById('patente').value.trim().toUpperCase().replace(/-/g, "");
+            if (!val) return;
 
-            if (!patente) return;
-
-            // Buscamos la patente en la colección 'activos'
-            db.collection('activos').doc(patente).get().then((doc) => {
+            // EL CAMBIO CLAVE: usamos .doc(val).get()
+            db.collection("activos").doc(val).get().then((doc) => {
                 if (doc.exists) {
-                    const datos = doc.data();
-                    mostrarResultado(datos.tipo, datos.hora);
+                    const data = doc.data();
+                    lanzarAlerta(data.tipo, data.hora);
                 } else {
-                    alert("Patente no encontrada en el sistema.");
+                    alert("Patente no encontrada");
                 }
-                input.value = "";
-            }).catch((error) => {
-                console.error("Error:", error);
-            });
+            }).catch(e => alert("Error: " + e));
         }
 
-        function mostrarResultado(tipo, hora) {
-            const pantalla = document.getElementById('pantalla-resultado');
-            const txtEstado = document.getElementById('res-estado');
+        function lanzarAlerta(tipo, hora) {
+            const p = document.getElementById('pantalla-resultado');
+            const estado = document.getElementById('res-estado');
             const txtTipo = document.getElementById('res-tipo');
-            const txtHora = document.getElementById('res-hora');
-
-            if (tipo === 'Ticket por Minuto') {
-                // MODO PENDIENTE (NARANJA + VIBRACIÓN DOBLE)
-                pantalla.style.backgroundColor = "#FF9800"; // Warning
-                pantalla.style.color = "black";
-                txtEstado.innerText = "PENDIENTE";
+            
+            if (tipo === "Ticket por Minuto") {
+                p.style.backgroundColor = "#FF9800"; // NARANJA
+                p.style.color = "black";
+                estado.innerText = "PENDIENTE";
                 txtTipo.innerText = "TICKET MINUTO";
-                
-                if ("vibrate" in navigator) {
-                    navigator.vibrate([400, 100, 400]); // Vibración de alerta
-                }
+                if ("vibrate" in navigator) navigator.vibrate([400, 100, 400]);
             } else {
-                // MODO PASE DIARIO (VERDE - TAL CUAL)
-                pantalla.style.backgroundColor = "#2E7D32"; // Success
-                pantalla.style.color = "white";
-                txtEstado.innerText = "PAGADO";
+                p.style.backgroundColor = "#2E7D32"; // VERDE
+                p.style.color = "white";
+                estado.innerText = "PAGADO";
                 txtTipo.innerText = "PASE DIARIO";
-                
-                if ("vibrate" in navigator) {
-                    navigator.vibrate(200); // Vibración corta
-                }
+                if ("vibrate" in navigator) navigator.vibrate(200);
             }
-
-            txtHora.innerText = "Ingreso: " + hora;
-            pantalla.style.display = 'flex';
+            
+            document.getElementById('res-hora').innerText = "Ingreso: " + hora;
+            p.style.display = "flex";
         }
 
         function cerrar() {
-            document.getElementById('pantalla-resultado').style.display = 'none';
+            document.getElementById('pantalla-resultado').style.display = "none";
+            document.getElementById('patente').value = "";
         }
     </script>
 </body>
