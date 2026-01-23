@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Quintay Terreno V7</title>
+    <title>Quintay Terreno V7.5</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 </head>
@@ -11,7 +11,7 @@
 
     <div style="margin-bottom: 30px;">
         <h2 style="color: #00E0D0; margin-bottom: 5px; letter-spacing: 2px;">VIVE QUINTAY</h2>
-        <span style="background: #0D3B5C; padding: 5px 15px; border-radius: 20px; font-size: 0.8rem;">V7 TERRENO</span>
+        <span style="background: #0D3B5C; padding: 5px 15px; border-radius: 20px; font-size: 0.8rem;">V7.5 CONTROL TERRENO</span>
     </div>
 
     <div style="margin-bottom: 20px;">
@@ -40,7 +40,6 @@
     </div>
 
     <script>
-        // CONFIGURACION INTEGRADA
         const firebaseConfig = {
             projectId: "vive-quintay-spa",
             authDomain: "vive-quintay-spa.firebaseapp.com",
@@ -66,12 +65,25 @@
                 if (doc.exists) {
                     const data = doc.data();
                     regContainer.style.display = "none";
-                    display.innerHTML = `
-                        <div style="background: #00C853; padding: 20px; border-radius: 15px; border: 2px solid white;">
-                            <h1 style="margin:0;">REGISTRADO</h1>
-                            <p>Ingreso: ${data.hora}</p>
-                            <p>Tipo: ${data.tipo}</p>
-                        </div>`;
+                    
+                    // --- LÓGICA DE COLORES MODIFICADA ---
+                    if (data.tipo === "Ticket por Minuto") {
+                        // MODO WARNING: Pendiente de pago
+                        display.innerHTML = `
+                            <div style="background: #FF9800; color: black; padding: 25px; border-radius: 15px; border: 4px solid #CC7A00;">
+                                <h1 style="margin:0; font-size: 2rem;">PENDIENTE</h1>
+                                <h2 style="margin:5px 0; font-size: 1.4rem;">TICKET MINUTO</h2>
+                                <p style="font-weight: bold; margin: 10px 0 0 0;">Ingreso: ${data.hora}</p>
+                            </div>`;
+                    } else {
+                        // MODO ÉXITO: Pase diario ya pagado
+                        display.innerHTML = `
+                            <div style="background: #00C853; color: white; padding: 25px; border-radius: 15px; border: 4px solid white;">
+                                <h1 style="margin:0; font-size: 2rem;">PAGADO</h1>
+                                <h2 style="margin:5px 0; font-size: 1.4rem;">PASE DIARIO</h2>
+                                <p style="font-weight: bold; margin: 10px 0 0 0;">Ingreso: ${data.hora}</p>
+                            </div>`;
+                    }
                 } else {
                     display.innerHTML = `<h1 style="color: #D32F2F;">NO REGISTRADO</h1>`;
                     regContainer.style.display = "block";
@@ -105,9 +117,14 @@
                     fecha: fecha,
                     status: "Activo"
                 });
-                alert("¡Registrado!");
                 regContainer.style.display = "none";
-                display.innerHTML = `<h1 style="color: #00C853;">REGISTRADO EXITOSAMENTE</h1>`;
+                // Al registrar uno nuevo, mostramos inmediatamente el cuadro naranja de pendiente
+                display.innerHTML = `
+                    <div style="background: #FF9800; color: black; padding: 25px; border-radius: 15px; border: 4px solid #CC7A00;">
+                        <h1 style="margin:0; font-size: 2rem;">PENDIENTE</h1>
+                        <h2 style="margin:5px 0; font-size: 1.4rem;">TICKET MINUTO</h2>
+                        <p style="font-weight: bold; margin: 10px 0 0 0;">Ingreso: ${hora}</p>
+                    </div>`;
                 document.getElementById("inputPatente").value = "";
             } catch (e) {
                 alert("Error al guardar.");
