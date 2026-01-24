@@ -1,15 +1,19 @@
-self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open('verificador-v1').then((cache) => cache.addAll([
-      '/',
-      '/index.html',
-      '/manifest.json'
-    ]))
-  );
+const CACHE_NAME = 'quintay-v1';
+
+// Instalación: No forzamos rutas para evitar errores de carga
+self.addEventListener('install', (event) => {
+    self.skipWaiting();
 });
 
-self.addEventListener('fetch', (e) => {
-  e.respondWith(
-    caches.match(e.request).then((response) => response || fetch(e.request))
-  );
+self.addEventListener('activate', (event) => {
+    event.waitUntil(clients.claim());
+});
+
+// Estrategia: Ir a la red primero, si falla, buscar en caché
+self.addEventListener('fetch', (event) => {
+    event.respondWith(
+        fetch(event.request).catch(() => {
+            return caches.match(event.request);
+        })
+    );
 });
