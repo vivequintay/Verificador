@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>VIVE QUINTAY SPA - VERIFICADOR</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0A2F4F">
+
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 </head>
@@ -40,6 +44,15 @@
     </div>
 
     <script>
+        // 2. REGISTRO DEL SERVICE WORKER (Indispensable para instalar)
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').then(() => {
+                    console.log('Service Worker Registrado');
+                });
+            });
+        }
+
         const firebaseConfig = {
             projectId: "vive-quintay-spa",
             authDomain: "vive-quintay-spa.firebaseapp.com",
@@ -66,9 +79,7 @@
                     const data = doc.data();
                     regContainer.style.display = "none";
                     
-                    // --- LÓGICA DE COLORES MODIFICADA ---
                     if (data.tipo === "Ticket por Minuto") {
-                        // MODO WARNING: Pendiente de pago
                         display.innerHTML = `
                             <div style="background: #FF9800; color: black; padding: 25px; border-radius: 15px; border: 4px solid #CC7A00;">
                                 <h1 style="margin:0; font-size: 2rem;">PENDIENTE</h1>
@@ -76,7 +87,6 @@
                                 <p style="font-weight: bold; margin: 10px 0 0 0;">Ingreso: ${data.hora}</p>
                             </div>`;
                     } else {
-                        // MODO ÉXITO: Pase diario ya pagado
                         display.innerHTML = `
                             <div style="background: #00C853; color: white; padding: 25px; border-radius: 15px; border: 4px solid white;">
                                 <h1 style="margin:0; font-size: 2rem;">PAGADO</h1>
@@ -118,7 +128,6 @@
                     status: "Activo"
                 });
                 regContainer.style.display = "none";
-                // Al registrar uno nuevo, mostramos inmediatamente el cuadro naranja de pendiente
                 display.innerHTML = `
                     <div style="background: #FF9800; color: black; padding: 25px; border-radius: 15px; border: 4px solid #CC7A00;">
                         <h1 style="margin:0; font-size: 2rem;">PENDIENTE</h1>
