@@ -53,12 +53,7 @@
             margin-top: 15px;
             cursor: pointer;
         }
-        #verificar-manual {
-            background: #2196F3;
-            color: white;
-        }
-
-        /* Estilo Botón Auditoría - ACTUALIZADO A NARANJA WARNING */
+        #verificar-manual { background: #2196F3; color: white; }
         #btn-total-pendientes {
             background: #FF9800;
             color: white;
@@ -67,7 +62,33 @@
             border: 2px solid #CC7A00;
         }
 
-        /* Estilos Tarjetas de la Lista */
+        /* DISEÑO DEL CHECK GIGANTE */
+        .check-container {
+            margin-top: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .check-circle {
+            width: 180px;
+            height: 180px;
+            background: #00C853;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 110px;
+            box-shadow: 0 0 30px rgba(0, 200, 83, 0.4);
+            animation: pulseCheck 2s infinite;
+        }
+
+        @keyframes pulseCheck {
+            0% { transform: scale(1); box-shadow: 0 0 20px rgba(0, 200, 83, 0.4); }
+            50% { transform: scale(1.05); box-shadow: 0 0 40px rgba(0, 200, 83, 0.7); }
+            100% { transform: scale(1); box-shadow: 0 0 20px rgba(0, 200, 83, 0.4); }
+        }
+
+        /* Estilos Tarjetas Lista */
         .card-pendiente {
             background: #0D3B5C;
             border-left: 5px solid #FF6B35;
@@ -77,43 +98,14 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
             cursor: pointer;
         }
-        .txt-patente-lista {
-            color: #00E0D0;
-            font-size: 1.4rem;
-            font-weight: bold;
-            display: block;
-        }
-        .txt-hora-lista {
-            color: #B0BEC5;
-            font-size: 0.9rem;
-        }
-        .badge-pendiente {
-            background: #FF6B35;
-            color: white;
-            padding: 5px 10px;
-            border-radius: 6px;
-            font-size: 0.8rem;
-            font-weight: bold;
-        }
-        #lista-pendientes {
-            margin-top: 20px;
-            padding-bottom: 40px;
-        }
-        #registro-container {
-            display: none;
-            background: #0D3B5C;
-            padding: 25px;
-            border-radius: 20px;
-            border: 2px solid #FF6B35;
-            margin-top: 20px;
-        }
-        hr {
-            border: 0.5px solid #0D3B5C;
-            margin: 30px 0;
-        }
+        .txt-patente-lista { color: #00E0D0; font-size: 1.4rem; font-weight: bold; }
+        .txt-hora-lista { color: #B0BEC5; font-size: 0.9rem; }
+        .badge-pendiente { background: #FF6B35; color: white; padding: 5px 10px; border-radius: 6px; font-weight: bold; }
+        #lista-pendientes { margin-top: 20px; padding-bottom: 40px; }
+        #registro-container { display: none; background: #0D3B5C; padding: 25px; border-radius: 20px; border: 2px solid #FF6B35; margin-top: 20px; }
+        hr { border: 0.5px solid #0D3B5C; margin: 30px 0; }
     </style>
 </head>
 <body>
@@ -125,28 +117,18 @@
 
     <div style="margin-bottom: 20px;">
         <input type="text" id="inputPatente" placeholder="BUSCAR PATENTE" autocomplete="off" />
-        
-        <button id="verificar-manual" onclick="verificarPatente()">
-            VERIFICAR
-        </button>
-
-        <button id="btn-total-pendientes" onclick="verTotalPendientes()">
-            TOTAL PENDIENTES
-        </button>
+        <button id="verificar-manual" onclick="verificarPatente()">VERIFICAR</button>
+        <button id="btn-total-pendientes" onclick="verTotalPendientes()">TOTAL PENDIENTES</button>
     </div>
 
     <hr>
-
     <div id="display-resultado"></div>
-    
     <div id="lista-pendientes"></div>
 
     <div id="registro-container">
         <p style="margin: 0 0 15px 0; color: #FFB300; font-weight: bold;">NO REGISTRADO</p>
         <input type="text" id="patenteNueva" style="text-transform: uppercase; font-weight: bold;" />
-        <button onclick="accionRegistrar()" style="background: #FF6B35; color: white;">
-            REGISTRAR INGRESO POR MINUTO
-        </button>
+        <button onclick="accionRegistrar()" style="background: #FF6B35; color: white;">REGISTRAR INGRESO POR MINUTO</button>
     </div>
 
     <script>
@@ -155,10 +137,7 @@
             authDomain: "vive-quintay-spa.firebaseapp.com",
             storageBucket: "vive-quintay-spa.appspot.com",
         };
-
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
         async function verificarPatente() {
@@ -167,14 +146,9 @@
             const display = document.getElementById("display-resultado");
             const regContainer = document.getElementById("registro-container");
             const listaDiv = document.getElementById("lista-pendientes");
-            const patenteNuevaInput = document.getElementById("patenteNueva");
-
+            
             listaDiv.innerHTML = "";
-
-            if (!patente) {
-                display.innerHTML = "<p style='color: #FFB300;'>Ingresa una patente</p>";
-                return;
-            }
+            if (!patente) { display.innerHTML = "<p style='color: #FFB300;'>Ingresa una patente</p>"; return; }
 
             try {
                 const doc = await db.collection("activos").doc(patente).get();
@@ -190,45 +164,38 @@
                                 <p style="font-weight: bold; margin: 10px 0 0 0;">Ingreso: ${data.hora || 'No disponible'}</p>
                             </div>`;
                     } else {
+                        // VERSIÓN PAGADO CON CÍRCULO Y CHECK GIGANTE
                         display.innerHTML = `
                             <div style="background: #00C853; color: white; padding: 25px; border-radius: 15px; border: 4px solid white;">
                                 <h1 style="margin:0; font-size: 2rem;">PAGADO</h1>
                                 <h2 style="margin:5px 0; font-size: 1.4rem;">PASE DIARIO</h2>
                                 <p style="font-weight: bold; margin: 10px 0 0 0;">Ingreso: ${data.hora || 'No disponible'}</p>
+                            </div>
+                            <div class="check-container">
+                                <div class="check-circle">✅</div>
                             </div>`;
                     }
                 } else {
                     display.innerHTML = `<h1 style="color: #D32F2F;">NO REGISTRADO</h1>`;
                     regContainer.style.display = "block";
-                    patenteNuevaInput.value = patente;
+                    document.getElementById("patenteNueva").value = patente;
                 }
             } catch (e) {
                 display.innerHTML = "<p style='color: #D32F2F;'>Error de conexión.</p>";
-                console.error(e);
             }
         }
 
         async function verTotalPendientes() {
             const listaDiv = document.getElementById("lista-pendientes");
             const display = document.getElementById("display-resultado");
-            const regContainer = document.getElementById("registro-container");
-
+            document.getElementById("registro-container").style.display = "none";
             display.innerHTML = "";
-            regContainer.style.display = "none";
             listaDiv.innerHTML = "<p style='color: #00E0D0;'>Consultando patio...</p>";
 
             try {
-                const snapshot = await db.collection("activos")
-                                         .where("tipo", "==", "Ticket por Minuto")
-                                         .get();
-
-                if (snapshot.empty) {
-                    listaDiv.innerHTML = "<p style='color: #FFB300; margin-top:20px;'>NO HAY VEHÍCULOS PENDIENTES</p>";
-                    return;
-                }
-
+                const snapshot = await db.collection("activos").where("tipo", "==", "Ticket por Minuto").get();
+                if (snapshot.empty) { listaDiv.innerHTML = "<p style='color: #FFB300; margin-top:20px;'>NO HAY PENDIENTES</p>"; return; }
                 let html = `<h3 style="color: #00E0D0; margin-bottom: 15px;">TOTAL PENDIENTES: ${snapshot.size}</h3>`;
-                
                 snapshot.forEach(doc => {
                     const data = doc.data();
                     html += `
@@ -240,14 +207,9 @@
                             <div class="badge-pendiente">PENDIENTE</div>
                         </div>`;
                 });
-
                 listaDiv.innerHTML = html;
                 listaDiv.scrollIntoView({ behavior: 'smooth' });
-
-            } catch (e) {
-                console.error("Error al obtener pendientes:", e);
-                listaDiv.innerHTML = "<p style='color: #D32F2F;'>Error de conexión.</p>";
-            }
+            } catch (e) { listaDiv.innerHTML = "<p style='color: #D32F2F;'>Error de conexión.</p>"; }
         }
 
         function seleccionarPatente(p) {
@@ -258,38 +220,16 @@
 
         async function accionRegistrar() {
             const patente = document.getElementById("patenteNueva").value.toUpperCase().trim();
-            const display = document.getElementById("display-resultado");
-            const regContainer = document.getElementById("registro-container");
-
             if (!patente) return;
-
             const ahora = new Date();
-            const hora = ahora.getHours().toString().padStart(2, '0') + ":" + 
-                         ahora.getMinutes().toString().padStart(2, '0') + ":" + 
-                         ahora.getSeconds().toString().padStart(2, '0');
-            const fecha = ahora.getDate().toString().padStart(2, '0') + "-" + 
-                          (ahora.getMonth() + 1).toString().padStart(2, '0') + "-" + 
-                          ahora.getFullYear();
-
+            const hora = ahora.toLocaleTimeString('es-CL');
+            const fecha = ahora.toLocaleDateString('es-CL');
             try {
-                await db.collection("activos").doc(patente).set({
-                    patente: patente,
-                    tipo: "Ticket por Minuto",
-                    hora: hora,
-                    fecha: fecha,
-                    status: "Activo"
-                });
-                regContainer.style.display = "none";
-                display.innerHTML = `
-                    <div style="background: #FF9800; color: black; padding: 25px; border-radius: 15px; border: 4px solid #CC7A00;">
-                        <h1 style="margin:0; font-size: 2rem;">PENDIENTE</h1>
-                        <h2 style="margin:5px 0; font-size: 1.4rem;">TICKET MINUTO</h2>
-                        <p style="font-weight: bold; margin: 10px 0 0 0;">Ingreso: ${hora}</p>
-                    </div>`;
+                await db.collection("activos").doc(patente).set({ patente, tipo: "Ticket por Minuto", hora, fecha, status: "Activo" });
+                document.getElementById("registro-container").style.display = "none";
+                verificarPatente();
                 document.getElementById("inputPatente").value = "";
-            } catch (e) {
-                alert("Error al guardar: " + e.message);
-            }
+            } catch (e) { alert("Error al guardar"); }
         }
     </script>
 </body>
