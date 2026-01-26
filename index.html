@@ -16,9 +16,7 @@
             background-color: #0A2F4F;
             color: white;
             font-family: 'Segoe UI', sans-serif;
-            margin: 0;
-            padding: 20px;
-            text-align: center;
+            margin: 0; padding: 20px; text-align: center;
         }
         h2 { color: #00E0D0; margin-bottom: 5px; letter-spacing: 2px; }
         .status { background: #0D3B5C; padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; }
@@ -31,7 +29,7 @@
         #verificar-manual { background: #2196F3; color: white; }
         #btn-total-pendientes { background: #FF9800; color: white; margin-top: 10px; font-size: 1.8rem; border: 2px solid #CC7A00; }
 
-        /* CAPA PANTALLA COMPLETA (OCULTA POR DEFECTO) */
+        /* CAPA PANTALLA COMPLETA - ALTA RESOLUCIÓN */
         #flash-overlay {
             display: none;
             position: fixed;
@@ -42,11 +40,18 @@
             align-items: center;
             flex-direction: column;
         }
-        .flash-check { font-size: 200px; animation: bounceIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+        /* SVG Check de alta nitidez */
+        .svg-check {
+            width: 200px;
+            height: 200px;
+            fill: white;
+            margin-bottom: 20px;
+            animation: bounceIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
         
         @keyframes bounceIn {
             0% { transform: scale(0.3); opacity: 0; }
-            50% { transform: scale(1.1); }
             100% { transform: scale(1); opacity: 1; }
         }
 
@@ -64,8 +69,10 @@
 <body>
 
     <div id="flash-overlay">
-        <div class="flash-check">✅</div>
-        <h1 style="color: white; font-size: 3rem;">PAGADO</h1>
+        <svg class="svg-check" viewBox="0 0 24 24">
+            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+        </svg>
+        <h1 style="color: white; font-size: 4rem; font-weight: 900; margin: 0;">PAGADO</h1>
     </div>
 
     <div style="margin-bottom: 30px;">
@@ -123,10 +130,8 @@
                                 <p style="font-weight: bold; margin: 10px 0 0 0;">Ingreso: ${data.hora || 'No disponible'}</p>
                             </div>`;
                     } else {
-                        // 1. MOSTRAR EL FLASH PANTALLA COMPLETA
+                        // EFECTO FLASH
                         flash.style.display = "flex";
-                        
-                        // 2. MOSTRAR LOS DETALLES DE FONDO (lo que quedará después)
                         display.innerHTML = `
                             <div style="background: #00C853; color: white; padding: 25px; border-radius: 15px; border: 4px solid white;">
                                 <h1 style="margin:0; font-size: 2rem;">PAGADO</h1>
@@ -134,15 +139,14 @@
                                 <p style="font-weight: bold; margin: 10px 0 0 0;">Ingreso: ${data.hora || 'No disponible'}</p>
                             </div>`;
 
-                        // 3. QUITAR EL FLASH DESPUÉS DE 1.5 SEGUNDOS
                         setTimeout(() => {
                             flash.style.opacity = "0";
-                            flash.style.transition = "opacity 0.5s ease";
+                            flash.style.transition = "opacity 0.4s ease";
                             setTimeout(() => {
                                 flash.style.display = "none";
-                                flash.style.opacity = "1"; // Reset para la próxima vez
-                            }, 500);
-                        }, 1500);
+                                flash.style.opacity = "1";
+                            }, 400);
+                        }, 1300); // 1.3 segundos de flash
                     }
                 } else {
                     display.innerHTML = `<h1 style="color: #D32F2F;">NO REGISTRADO</h1>`;
@@ -167,16 +171,13 @@
                 snapshot.forEach(doc => {
                     const data = doc.data();
                     html += `<div class="card-pendiente" onclick="seleccionarPatente('${doc.id}')">
-                                <div style="text-align: left;">
-                                    <span class="txt-patente-lista">${doc.id}</span>
-                                    <span class="txt-hora-lista">Ingreso: ${data.hora || '--:--'}</span>
-                                </div>
+                                <div style="text-align: left;"><span class="txt-patente-lista">${doc.id}</span><span class="txt-hora-lista">Ingreso: ${data.hora || '--:--'}</span></div>
                                 <div class="badge-pendiente">PENDIENTE</div>
                              </div>`;
                 });
                 listaDiv.innerHTML = html;
                 listaDiv.scrollIntoView({ behavior: 'smooth' });
-            } catch (e) { listaDiv.innerHTML = "<p style='color: #D32F2F;'>Error de conexión.</p>"; }
+            } catch (e) { console.error(e); }
         }
 
         function seleccionarPatente(p) {
@@ -196,7 +197,7 @@
                 document.getElementById("registro-container").style.display = "none";
                 verificarPatente();
                 document.getElementById("inputPatente").value = "";
-            } catch (e) { alert("Error al guardar"); }
+            } catch (e) { alert("Error"); }
         }
     </script>
 </body>
