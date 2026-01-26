@@ -62,29 +62,30 @@
             border: 2px solid #CC7A00;
         }
 
-        /* DISEÑO DEL CHECK GIGANTE */
+        /* DISEÑO DEL CHECK SUPER GIGANTE - AJUSTADO */
         .check-container {
-            margin-top: 50px;
+            margin-top: 80px; /* AQUÍ AJUSTAS QUÉ TANTO BAJA (Vertical) */
             display: flex;
             justify-content: center;
             align-items: center;
+            width: 100%;
         }
         .check-circle {
-            width: 180px;
-            height: 180px;
+            width: 250px;  /* AGRANDADO PROPORCIONALMENTE */
+            height: 250px; /* AGRANDADO PROPORCIONALMENTE */
             background: #00C853;
             border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 110px;
-            box-shadow: 0 0 30px rgba(0, 200, 83, 0.4);
+            font-size: 150px; /* TAMAÑO DEL ✅ */
+            box-shadow: 0 0 50px rgba(0, 200, 83, 0.5);
             animation: pulseCheck 2s infinite;
         }
 
         @keyframes pulseCheck {
             0% { transform: scale(1); box-shadow: 0 0 20px rgba(0, 200, 83, 0.4); }
-            50% { transform: scale(1.05); box-shadow: 0 0 40px rgba(0, 200, 83, 0.7); }
+            50% { transform: scale(1.1); box-shadow: 0 0 60px rgba(0, 200, 83, 0.8); }
             100% { transform: scale(1); box-shadow: 0 0 20px rgba(0, 200, 83, 0.4); }
         }
 
@@ -164,7 +165,6 @@
                                 <p style="font-weight: bold; margin: 10px 0 0 0;">Ingreso: ${data.hora || 'No disponible'}</p>
                             </div>`;
                     } else {
-                        // VERSIÓN PAGADO CON CÍRCULO Y CHECK GIGANTE
                         display.innerHTML = `
                             <div style="background: #00C853; color: white; padding: 25px; border-radius: 15px; border: 4px solid white;">
                                 <h1 style="margin:0; font-size: 2rem;">PAGADO</h1>
