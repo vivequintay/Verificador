@@ -21,18 +21,15 @@
         }
         h2 { color: #00E0D0; margin-bottom: 5px; letter-spacing: 2px; }
         .status { background: #0D3B5C; padding: 5px 15px; border-radius: 20px; font-size: 0.8rem; }
-        
         input[type="text"] {
             width: 100%; box-sizing: border-box; padding: 18px; font-size: 1.5rem;
             border-radius: 12px; border: 2px solid #00E0D0; text-align: center;
             text-transform: uppercase; background: #fdfdfd; color: #333;
         }
-        
         button { width: 100%; padding: 18px; border: none; border-radius: 12px; font-weight: bold; font-size: 2.2rem; margin-top: 15px; cursor: pointer; }
         #verificar-manual { background: #2196F3; color: white; }
         #btn-total-pendientes { background: #FF9800; color: white; margin-top: 10px; font-size: 1.8rem; border: 2px solid #CC7A00; }
 
-        /* CAPAS DE FLASH (PANTALLA COMPLETA) */
         .overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             z-index: 9999; justify-content: center; align-items: center; flex-direction: column;
@@ -51,7 +48,6 @@
             100% { transform: scale(1); opacity: 1; }
         }
 
-        /* Estilos Tarjetas Lista */
         .card-pendiente {
             background: #0D3B5C; border-left: 5px solid #FF6B35; margin: 10px 0;
             padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;
@@ -108,23 +104,18 @@
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // Función unificada para Flashes con Vibración
         function lanzarFlash(elementoId) {
             const el = document.getElementById(elementoId);
             el.style.display = "flex";
             el.style.opacity = "1";
             
-            if ("vibrate" in navigator) {
-                navigator.vibrate(200); 
-            }
-
             setTimeout(() => {
                 el.style.transition = "opacity 0.4s ease";
                 el.style.opacity = "0";
                 setTimeout(() => {
                     el.style.display = "none";
                 }, 400);
-            }, 1300); // Duración ajustable
+            }, 1300);
         }
 
         async function verificarPatente() {
@@ -143,11 +134,11 @@
                 if (doc.exists) {
                     const data = doc.data();
                     regContainer.style.display = "none";
-                    
-                    // SEGURIDAD: Normalizamos el texto de la DB para evitar errores de interpretación
                     const tipoDb = data.tipo ? data.tipo.toLowerCase().trim() : "";
 
                     if (tipoDb === "ticket por minuto") {
+                        // LANZA FLASH + VIBRACIÓN LARGA (400ms) SOLO AQUÍ
+                        if ("vibrate" in navigator) { navigator.vibrate(400); }
                         lanzarFlash("flash-pendiente");
                         display.innerHTML = `
                             <div style="background: #FF9800; color: black; padding: 25px; border-radius: 15px; border: 4px solid #CC7A00;">
@@ -156,6 +147,7 @@
                                 <p style="font-weight: bold; margin: 10px 0 0 0;">Ingreso: ${data.hora || '--:--'}</p>
                             </div>`;
                     } else if (tipoDb === "pase diario") {
+                        // LANZA FLASH PERO SIN VIBRACIÓN
                         lanzarFlash("flash-pagado");
                         display.innerHTML = `
                             <div style="background: #00C853; color: white; padding: 25px; border-radius: 15px; border: 4px solid white;">
@@ -164,7 +156,6 @@
                                 <p style="font-weight: bold; margin: 10px 0 0 0;">Ingreso: ${data.hora || '--:--'}</p>
                             </div>`;
                     } else {
-                        // Caso para datos que no coinciden con los dos anteriores
                         display.innerHTML = `
                             <div style="background: #546E7A; color: white; padding: 20px; border-radius: 15px;">
                                 <h2 style="margin:0;">TIPO: ${data.tipo}</h2>
@@ -188,12 +179,9 @@
             document.getElementById("registro-container").style.display = "none";
             display.innerHTML = "";
             listaDiv.innerHTML = "<p style='color: #00E0D0;'>Consultando patio...</p>";
-
             try {
-                // El filtro aquí debe ser exacto a como se guarda en la DB
                 const snapshot = await db.collection("activos").where("tipo", "==", "Ticket por Minuto").get();
                 if (snapshot.empty) { listaDiv.innerHTML = "<p style='color: #FFB300; margin-top:20px;'>NO HAY PENDIENTES</p>"; return; }
-                
                 let html = `<h3 style="color: #00E0D0; margin-bottom: 15px;">TOTAL PENDIENTES: ${snapshot.size}</h3>`;
                 snapshot.forEach(doc => {
                     const data = doc.data();
@@ -221,11 +209,7 @@
             const fecha = ahora.toLocaleDateString('es-CL');
             try {
                 await db.collection("activos").doc(patente).set({ 
-                    patente, 
-                    tipo: "Ticket por Minuto", 
-                    hora, 
-                    fecha, 
-                    status: "Activo" 
+                    patente, tipo: "Ticket por Minuto", hora, fecha, status: "Activo" 
                 });
                 document.getElementById("registro-container").style.display = "none";
                 verificarPatente();
