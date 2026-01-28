@@ -135,9 +135,20 @@
                     const data = doc.data();
                     regContainer.style.display = "none";
                     const tipoDb = data.tipo ? data.tipo.toLowerCase().trim() : "";
+                    const statusDb = data.status ? data.status.toLowerCase().trim() : "activo";
 
-                    if (tipoDb === "ticket por minuto") {
-                        // LANZA FLASH + VIBRACIÓN LARGA (400ms) SOLO AQUÍ
+                    // CASO 1: PAGADO POR MINUTO O FINALIZADO
+                    if (statusDb === "finalizado") {
+                        lanzarFlash("flash-pagado");
+                        display.innerHTML = `
+                            <div style="background: #00C853; color: white; padding: 25px; border-radius: 15px; border: 4px solid white;">
+                                <h1 style="margin:0; font-size: 2rem;">PAGADO</h1>
+                                <h2 style="margin:5px 0; font-size: 1.4rem;">TICKET POR MINUTO</h2>
+                                <p style="font-weight: bold; margin: 10px 0 0 0;">Hora Pago: ${data.hora_pago || '--:--'}</p>
+                            </div>`;
+                    } 
+                    // CASO 2: TICKET PENDIENTE
+                    else if (tipoDb === "ticket por minuto") {
                         if ("vibrate" in navigator) { navigator.vibrate(800); }
                         lanzarFlash("flash-pendiente");
                         display.innerHTML = `
@@ -146,8 +157,9 @@
                                 <h2 style="margin:5px 0; font-size: 1.4rem;">TICKET MINUTO</h2>
                                 <p style="font-weight: bold; margin: 10px 0 0 0;">Ingreso: ${data.hora || '--:--'}</p>
                             </div>`;
-                    } else if (tipoDb === "pase diario") {
-                        // LANZA FLASH PERO SIN VIBRACIÓN
+                    } 
+                    // CASO 3: PASE DIARIO (SIEMPRE PAGADO)
+                    else if (tipoDb === "pase diario") {
                         lanzarFlash("flash-pagado");
                         display.innerHTML = `
                             <div style="background: #00C853; color: white; padding: 25px; border-radius: 15px; border: 4px solid white;">
@@ -180,7 +192,12 @@
             display.innerHTML = "";
             listaDiv.innerHTML = "<p style='color: #00E0D0;'>Consultando patio...</p>";
             try {
-                const snapshot = await db.collection("activos").where("tipo", "==", "Ticket por Minuto").get();
+                // Solo listamos los que están realmente "Activos" (sin pagar)
+                const snapshot = await db.collection("activos")
+                                    .where("tipo", "==", "Ticket por Minuto")
+                                    .where("status", "==", "Activo")
+                                    .get();
+                                    
                 if (snapshot.empty) { listaDiv.innerHTML = "<p style='color: #FFB300; margin-top:20px;'>NO HAY PENDIENTES</p>"; return; }
                 let html = `<h3 style="color: #00E0D0; margin-bottom: 15px;">TOTAL PENDIENTES: ${snapshot.size}</h3>`;
                 snapshot.forEach(doc => {
