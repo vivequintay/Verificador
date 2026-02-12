@@ -56,6 +56,36 @@
         .txt-hora-lista { color: #B0BEC5; font-size: 0.9rem; }
         .badge-pendiente { background: #FF6B35; color: white; padding: 5px 10px; border-radius: 6px; font-weight: bold; }
         hr { border: 0.5px solid #0D3B5C; margin: 30px 0; }
+
+        /* Estilo para el contenedor de sugerencias */
+.autocomplete-items {
+    position: absolute;
+    border: 2px solid #00E0D0;
+    border-top: none;
+    z-index: 99;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background-color: #0D3B5C;
+    border-radius: 0 0 12px 12px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.autocomplete-items div {
+    padding: 15px;
+    cursor: pointer;
+    border-bottom: 1px solid #0A2F4F;
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: #00E0D0;
+}
+
+.autocomplete-items div:last-child { border-bottom: none; }
+.autocomplete-active { background-color: #0A2F4F !important; }
+
+/* Contenedor relativo para el input */
+.autocomplete-container { position: relative; width: 100%; }
     </style>
 </head>
 <body>
@@ -80,7 +110,11 @@
     </div>
 
     <div style="margin-bottom: 20px;">
-        <input type="text" id="inputPatente" placeholder="BUSCAR PATENTE" autocomplete="off" />
+        <div class="autocomplete-container" style="margin-bottom: 20px;">
+            <input type="text" id="inputPatente" placeholder="BUSCAR PATENTE" autocomplete="off" />
+            <div id="autocomplete-list" class="autocomplete-items" style="display:none;"></div>
+        </div>
+        
         <button id="verificar-manual" onclick="verificarPatente()">VERIFICAR</button>
         <button id="btn-total-pendientes" onclick="verTotalPendientes()">TOTAL PENDIENTES</button>
     </div>
@@ -229,10 +263,58 @@
                     patente, tipo: "Ticket por Minuto", hora, fecha, status: "Activo" 
                 });
                 document.getElementById("registro-container").style.display = "none";
+                await cargarPatentesCache();
                 verificarPatente();
                 document.getElementById("inputPatente").value = "";
             } catch (e) { alert("Error al guardar"); }
         }
+
+        // Variable global para almacenar patentes en patio y optimizar velocidad
+let patentesActivasCache = [];
+
+// Función para precargar patentes del patio (llama esto al iniciar)
+async function cargarPatentesCache() {
+    const snapshot = await db.collection("activos").where("status", "==", "Activo").get();
+    patentesActivasCache = snapshot.docs.map(doc => doc.id);
+}
+cargarPatentesCache(); // Ejecutar al cargar la página
+
+const input = document.getElementById("inputPatente");
+const listContainer = document.getElementById("autocomplete-list");
+
+input.addEventListener("input", function() {
+    const val = this.value.toUpperCase();
+    listContainer.innerHTML = "";
+    if (!val) { listContainer.style.display = "none"; return; }
+
+    // Filtrar las patentes que empiezan con lo escrito
+    const sugerencias = patentesActivasCache.filter(p => p.startsWith(val)).slice(0, 5);
+
+    if (sugerencias.length > 0) {
+        sugerencias.forEach(p => {
+            const b = document.createElement("DIV");
+            // Resaltar la coincidencia
+            b.innerHTML = "<strong>" + p.substr(0, val.length) + "</strong>";
+            b.innerHTML += p.substr(val.length);
+            b.innerHTML += "<input type='hidden' value='" + p + "'>";
+            
+            b.addEventListener("click", function() {
+                input.value = this.getElementsByTagName("input")[0].value;
+                listContainer.style.display = "none";
+                verificarPatente(); // Ejecuta la verificación automáticamente
+            });
+            listContainer.appendChild(b);
+        });
+        listContainer.style.display = "block";
+    } else {
+        listContainer.style.display = "none";
+    }
+});
+
+// Cerrar lista si se hace clic fuera
+document.addEventListener("click", (e) => {
+    if (e.target !== input) listContainer.style.display = "none";
+});
     </script>
 </body>
 </html>
