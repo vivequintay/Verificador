@@ -269,39 +269,52 @@
             } catch (e) { alert("Error al guardar"); }
         }
 
-        // Variable global para almacenar patentes en patio y optimizar velocidad
+// Variable global para almacenar todas las patentes (Universal)
 let patentesActivasCache = [];
 
-// Función para precargar patentes del patio (llama esto al iniciar)
 async function cargarPatentesCache() {
-    const snapshot = await db.collection("activos").where("status", "==", "Activo").get();
-    patentesActivasCache = snapshot.docs.map(doc => doc.id);
+    try {
+        // Traemos TODO de la colección "activos" para que el filtro sea universal
+        const snapshot = await db.collection("activos").get();
+        patentesActivasCache = snapshot.docs.map(doc => doc.id);
+        console.log("Cache universal cargada: " + patentesActivasCache.length + " patentes.");
+    } catch (e) {
+        console.error("Error cargando cache:", e);
+    }
 }
-cargarPatentesCache(); // Ejecutar al cargar la página
-
+cargarPatentesCache();
+        
 const input = document.getElementById("inputPatente");
 const listContainer = document.getElementById("autocomplete-list");
 
 input.addEventListener("input", function() {
-    const val = this.value.toUpperCase();
+    const val = this.value.toUpperCase().trim();
     listContainer.innerHTML = "";
-    if (!val) { listContainer.style.display = "none"; return; }
+    
+    if (!val || val.length < 1) { 
+        listContainer.style.display = "none"; 
+        return; 
+    }
 
-    // Filtrar las patentes que empiezan con lo escrito
-    const sugerencias = patentesActivasCache.filter(p => p.startsWith(val)).slice(0, 5);
+    // PROPUESTA PROFESIONAL: 
+    // .filter utiliza 'includes' para que filtre según vas sumando letras (A -> AA -> AA1)
+    // .slice(0, 8) para mostrar hasta 8 sugerencias (mejor en móviles)
+    const sugerencias = patentesActivasCache.filter(p => p.includes(val)).slice(0, 8);
 
     if (sugerencias.length > 0) {
         sugerencias.forEach(p => {
             const b = document.createElement("DIV");
-            // Resaltar la coincidencia
-            b.innerHTML = "<strong>" + p.substr(0, val.length) + "</strong>";
-            b.innerHTML += p.substr(val.length);
+            
+            // Resaltamos visualmente dónde coincide el texto
+            const regex = new RegExp(`(${val})`, 'gi');
+            b.innerHTML = p.replace(regex, "<strong>$1</strong>");
+            
             b.innerHTML += "<input type='hidden' value='" + p + "'>";
             
             b.addEventListener("click", function() {
                 input.value = this.getElementsByTagName("input")[0].value;
                 listContainer.style.display = "none";
-                verificarPatente(); // Ejecuta la verificación automáticamente
+                verificarPatente(); // Ejecución inmediata al tocar
             });
             listContainer.appendChild(b);
         });
