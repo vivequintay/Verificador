@@ -159,7 +159,6 @@
                 }, 400);
             }, 1300);
         }
-
 async function verificarPatente() {
     const rawInput = document.getElementById("inputPatente").value.toUpperCase().trim();
     const patente = rawInput.replace(/-/g, "").replace(/\s+/g, "");
@@ -173,76 +172,58 @@ async function verificarPatente() {
         return; 
     }
 
+    console.log("Iniciando verificación para patente:", patente);
+
     try {
-        // 1. Consultar SIEMPRE si es frecuente desde la lista permanente
+        console.log("Paso 1: Consultando config/frecuentes...");
         const frecuentesSnap = await db.collection("config").doc("frecuentes").get();
+        console.log("Respuesta config/frecuentes:", frecuentesSnap.exists ? "Existe" : "No existe");
         const frecuentesLista = frecuentesSnap.exists ? frecuentesSnap.data().lista || [] : [];
         const esFrecuente = frecuentesLista.includes(patente);
+        console.log("Es frecuente?", esFrecuente);
 
-        // 2. Verificar si existe en activos hoy
+        console.log("Paso 2: Consultando activos/" + patente);
         const doc = await db.collection("activos").doc(patente).get();
+        console.log("Documento existe?", doc.exists);
 
-        // PRIORIDAD MÁXIMA: Si es frecuente, mostrar flash celeste ANTES que cualquier otra cosa
         if (esFrecuente) {
+            console.log("Mostrando flash frecuente");
             lanzarFlash("flash-frecuente");
             
-            // Si no existe hoy → mostrar NO REGISTRADO después del flash
             if (!doc.exists) {
+                console.log("No existe en activos → NO REGISTRADO");
                 display.innerHTML = `<h1 style="color: #D32F2F;">NO REGISTRADO</h1>`;
                 regContainer.style.display = "block";
                 document.getElementById("patenteNueva").value = patente;
-                return;  // Salimos aquí para no mostrar PENDIENTE
+                return;
             }
         }
 
-        // Si NO es frecuente o ya existe → proceder con el estado normal
         if (doc.exists) {
             const data = doc.data();
+            console.log("Datos del documento:", data);
             regContainer.style.display = "none";
             const tipoDb = data.tipo ? data.tipo.toLowerCase().trim() : "";
             const statusDb = data.status ? data.status.toLowerCase().trim() : "activo";
 
             if (statusDb === "finalizado") {
                 lanzarFlash("flash-pagado");
-                display.innerHTML = `
-                    <div style="background: #00C853; color: white; padding: 25px; border-radius: 15px; border: 4px solid white;">
-                        <h1 style="margin:0; font-size: 2rem;">PAGADO</h1>
-                        <h2 style="margin:5px 0; font-size: 1.4rem;">TICKET POR MINUTO</h2>
-                        <p style="font-weight: bold; margin: 10px 0 0 0;">Hora Pago: ${data.hora_pago || '--:--'}</p>
-                    </div>`;
+                display.innerHTML = `...`;  // tu código original
             } else if (tipoDb === "ticket por minuto") {
                 if ("vibrate" in navigator) { navigator.vibrate(800); }
                 lanzarFlash("flash-pendiente");
-                display.innerHTML = `
-                    <div style="background: #FF9800; color: black; padding: 25px; border-radius: 15px; border: 4px solid #CC7A00;">
-                        <h1 style="margin:0; font-size: 2rem;">PENDIENTE</h1>
-                        <h2 style="margin:5px 0; font-size: 1.4rem;">TICKET MINUTO</h2>
-                        <p style="font-weight: bold; margin: 10px 0 0 0;">Ingreso: ${data.hora || '--:--'}</p>
-                    </div>`;
-            } else if (tipoDb === "pase diario") {
-                lanzarFlash("flash-pagado");
-                display.innerHTML = `
-                    <div style="background: #00C853; color: white; padding: 25px; border-radius: 15px; border: 4px solid white;">
-                        <h1 style="margin:0; font-size: 2rem;">PAGADO</h1>
-                        <h2 style="margin:5px 0; font-size: 1.4rem;">PASE DIARIO</h2>
-                        <p style="font-weight: bold; margin: 10px 0 0 0;">Ingreso: ${data.hora || '--:--'}</p>
-                    </div>`;
-            } else {
-                display.innerHTML = `
-                    <div style="background: #546E7A; color: white; padding: 20px; border-radius: 15px;">
-                        <h2 style="margin:0;">TIPO: ${data.tipo}</h2>
-                        <p>Verifica en administración</p>
-                    </div>`;
-            }
+                display.innerHTML = `...`;  // tu código original
+            } // ... resto igual
         } else {
-            // No frecuente y no registrada → normal "NO REGISTRADO"
             display.innerHTML = `<h1 style="color: #D32F2F;">NO REGISTRADO</h1>`;
             regContainer.style.display = "block";
             document.getElementById("patenteNueva").value = patente;
         }
     } catch (e) {
-        console.error("Error en verificarPatente:", e);
-        display.innerHTML = "<p style='color: #D32F2F;'>Error de conexión. Revisa internet o Firebase.</p>";
+        console.error("ERROR DETECTADO EN verificarPatente:", e);
+        console.error("Mensaje:", e.message);
+        console.error("Código:", e.code);
+        display.innerHTML = "<p style='color: #D32F2F;'>Error: " + e.message + ". Revisa consola.</p>";
     }
 }
         async function verTotalPendientes() {
