@@ -191,16 +191,18 @@ async function verificarPatente() {
     }
 
     try {
-        // Cargar cache de frecuentes si no está listo
+        // 1. Siempre consultar si es frecuente (lista permanente)
         await cargarFrecuentesCache();
         const esFrecuente = frecuentesCache.includes(patente);
 
+        // 2. Verificar si existe en activos hoy
         const doc = await db.collection("activos").doc(patente).get();
-        
-        // PRIORIDAD: Siempre mostrar flash frecuente si es true, independientemente del estado
+
+        // PRIORIDAD ABSOLUTA: Si es frecuente, mostrar flash celeste PRIMERO
         if (esFrecuente) {
             lanzarFlash("flash-frecuente");
-            // Si no existe, mostrar "NO REGISTRADO" después del flash
+            
+            // Si no existe en activos hoy → mostrar "NO REGISTRADO" después del flash
             if (!doc.exists) {
                 display.innerHTML = `<h1 style="color: #D32F2F;">NO REGISTRADO</h1>`;
                 regContainer.style.display = "block";
@@ -209,6 +211,7 @@ async function verificarPatente() {
             }
         }
 
+        // Si NO es frecuente o ya existe → proceder normal
         if (doc.exists) {
             const data = doc.data();
             regContainer.style.display = "none";
@@ -248,6 +251,7 @@ async function verificarPatente() {
                     </div>`;
             }
         } else {
+            // No frecuente y no registrada → normal "NO REGISTRADO"
             display.innerHTML = `<h1 style="color: #D32F2F;">NO REGISTRADO</h1>`;
             regContainer.style.display = "block";
             document.getElementById("patenteNueva").value = patente;
