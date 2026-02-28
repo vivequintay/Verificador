@@ -58,34 +58,34 @@
         hr { border: 0.5px solid #0D3B5C; margin: 30px 0; }
 
         /* Estilo para el contenedor de sugerencias */
-.autocomplete-items {
-    position: absolute;
-    border: 2px solid #00E0D0;
-    border-top: none;
-    z-index: 99;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background-color: #0D3B5C;
-    border-radius: 0 0 12px 12px;
-    max-height: 200px;
-    overflow-y: auto;
-}
+        .autocomplete-items {
+            position: absolute;
+            border: 2px solid #00E0D0;
+            border-top: none;
+            z-index: 99;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background-color: #0D3B5C;
+            border-radius: 0 0 12px 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
 
-.autocomplete-items div {
-    padding: 15px;
-    cursor: pointer;
-    border-bottom: 1px solid #0A2F4F;
-    font-size: 1.3rem;
-    font-weight: bold;
-    color: #00E0D0;
-}
+        .autocomplete-items div {
+            padding: 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #0A2F4F;
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #00E0D0;
+        }
 
-.autocomplete-items div:last-child { border-bottom: none; }
-.autocomplete-active { background-color: #0A2F4F !important; }
+        .autocomplete-items div:last-child { border-bottom: none; }
+        .autocomplete-active { background-color: #0A2F4F !important; }
 
-/* Contenedor relativo para el input */
-.autocomplete-container { position: relative; width: 100%; }
+        /* Contenedor relativo para el input */
+        .autocomplete-container { position: relative; width: 100%; }
     </style>
 </head>
 <body>
@@ -174,26 +174,34 @@
             }
 
             try {
+                // Consultar SIEMPRE si es frecuente desde la lista permanente
+                const frecuentesSnap = await db.collection("config").doc("frecuentes").get();
+                const frecuentesLista = frecuentesSnap.exists ? frecuentesSnap.data().lista || [] : [];
+                const esFrecuente = frecuentesLista.includes(patente);
+
+                // Verificar si existe en activos hoy
                 const doc = await db.collection("activos").doc(patente).get();
-                
+
+                // PRIORIDAD MÁXIMA: Si es frecuente, mostrar flash celeste ANTES que cualquier otra cosa
+                if (esFrecuente) {
+                    lanzarFlash("flash-frecuente");
+                    
+                    // Si no existe hoy → mostrar NO REGISTRADO después del flash
+                    if (!doc.exists) {
+                        display.innerHTML = `<h1 style="color: #D32F2F;">NO REGISTRADO</h1>`;
+                        regContainer.style.display = "block";
+                        document.getElementById("patenteNueva").value = patente;
+                        return;
+                    }
+                }
+
+                // Si NO es frecuente o ya existe → proceder con el estado normal
                 if (doc.exists) {
                     const data = doc.data();
                     regContainer.style.display = "none";
                     const tipoDb = data.tipo ? data.tipo.toLowerCase().trim() : "";
                     const statusDb = data.status ? data.status.toLowerCase().trim() : "activo";
-                    const esFrecuente = data.es_frecuente === true;  // Lee el campo subido desde Python
-                    
-                    if (esFrecuente) {
-                        lanzarFlash("flash-frecuente");
-                        display.innerHTML = `
-                            <div style="background: #42A5F5; color: white; padding: 25px; border-radius: 15px; border: 4px solid #90CAF9;">
-                                <h1 style="margin:0; font-size: 2.5rem;">FRECUENTE</h1>
-                                <h2 style="margin:10px 0; font-size: 1.6rem;">Tope $4.000</h2>
-                                <p style="font-weight: bold; margin: 10px 0 0 0;">Ingreso: ${data.hora || '--:--'}</p>
-                            </div>`;
-                        return;
-                    }
-                    
+
                     if (statusDb === "finalizado") {
                         lanzarFlash("flash-pagado");
                         display.innerHTML = `
@@ -232,8 +240,8 @@
                     document.getElementById("patenteNueva").value = patente;
                 }
             } catch (e) {
-                console.error(e);
-                display.innerHTML = "<p style='color: #D32F2F;'>Error de conexión.</p>";
+                console.error("Error en verificarPatente:", e);
+                display.innerHTML = "<p style='color: #D32F2F;'>Error de conexión. Revisa internet o Firebase.</p>";
             }
         }
 
@@ -244,13 +252,15 @@
             display.innerHTML = "";
             listaDiv.innerHTML = "<p style='color: #00E0D0;'>Consultando patio...</p>";
             try {
-                // Solo listamos los que están realmente "Activos" (sin pagar)
                 const snapshot = await db.collection("activos")
-                                    .where("tipo", "==", "Ticket por Minuto")
-                                    .where("status", "==", "Activo")
-                                    .get();
+                    .where("tipo", "==", "Ticket por Minuto")
+                    .where("status", "==", "Activo")
+                    .get();
                                     
-                if (snapshot.empty) { listaDiv.innerHTML = "<p style='color: #FFB300; margin-top:20px;'>NO HAY PENDIENTES</p>"; return; }
+                if (snapshot.empty) { 
+                    listaDiv.innerHTML = "<p style='color: #FFB300; margin-top:20px;'>NO HAY PENDIENTES</p>"; 
+                    return; 
+                }
                 let html = `<h3 style="color: #00E0D0; margin-bottom: 15px;">TOTAL PENDIENTES: ${snapshot.size}</h3>`;
                 snapshot.forEach(doc => {
                     const data = doc.data();
@@ -261,7 +271,9 @@
                 });
                 listaDiv.innerHTML = html;
                 listaDiv.scrollIntoView({ behavior: 'smooth' });
-            } catch (e) { listaDiv.innerHTML = "<p style='color: #D32F2F;'>Error al cargar lista.</p>"; }
+            } catch (e) { 
+                listaDiv.innerHTML = "<p style='color: #D32F2F;'>Error al cargar lista.</p>"; 
+            }
         }
 
         function seleccionarPatente(p) {
@@ -287,65 +299,59 @@
             } catch (e) { alert("Error al guardar"); }
         }
 
-// Variable global para almacenar todas las patentes (Universal)
-let patentesActivasCache = [];
+        // Variable global para almacenar todas las patentes (Universal)
+        let patentesActivasCache = [];
 
-async function cargarPatentesCache() {
-    try {
-        // Traemos TODO de la colección "activos" para que el filtro sea universal
-        const snapshot = await db.collection("activos").get();
-        patentesActivasCache = snapshot.docs.map(doc => doc.id);
-        console.log("Cache universal cargada: " + patentesActivasCache.length + " patentes.");
-    } catch (e) {
-        console.error("Error cargando cache:", e);
-    }
-}
-cargarPatentesCache();
+        async function cargarPatentesCache() {
+            try {
+                const snapshot = await db.collection("activos").get();
+                patentesActivasCache = snapshot.docs.map(doc => doc.id);
+                console.log("Cache universal cargada: " + patentesActivasCache.length + " patentes.");
+            } catch (e) {
+                console.error("Error cargando cache:", e);
+            }
+        }
+        cargarPatentesCache();
+       
+        const input = document.getElementById("inputPatente");
+        const listContainer = document.getElementById("autocomplete-list");
 
-const input = document.getElementById("inputPatente");
-const listContainer = document.getElementById("autocomplete-list");
-
-input.addEventListener("input", function() {
-    const val = this.value.toUpperCase().trim();
-    listContainer.innerHTML = "";
-    
-    if (!val || val.length < 1) { 
-        listContainer.style.display = "none"; 
-        return; 
-    }
-
-    // PROPUESTA PROFESIONAL: 
-    // .filter utiliza 'includes' para que filtre según vas sumando letras (A -> AA -> AA1)
-    // .slice(0, 8) para mostrar hasta 8 sugerencias (mejor en móviles)
-    const sugerencias = patentesActivasCache.filter(p => p.includes(val)).slice(0, 8);
-
-    if (sugerencias.length > 0) {
-        sugerencias.forEach(p => {
-            const b = document.createElement("DIV");
+        input.addEventListener("input", function() {
+            const val = this.value.toUpperCase().trim();
+            listContainer.innerHTML = "";
             
-            // Resaltamos visualmente dónde coincide el texto
-            const regex = new RegExp(`(${val})`, 'gi');
-            b.innerHTML = p.replace(regex, "<strong>$1</strong>");
-            
-            b.innerHTML += "<input type='hidden' value='" + p + "'>";
-            
-            b.addEventListener("click", function() {
-                input.value = this.getElementsByTagName("input")[0].value;
+            if (!val || val.length < 1) { 
+                listContainer.style.display = "none"; 
+                return; 
+            }
+
+            const sugerencias = patentesActivasCache.filter(p => p.includes(val)).slice(0, 8);
+
+            if (sugerencias.length > 0) {
+                sugerencias.forEach(p => {
+                    const b = document.createElement("DIV");
+                    
+                    const regex = new RegExp(`(${val})`, 'gi');
+                    b.innerHTML = p.replace(regex, "<strong>$1</strong>");
+                    
+                    b.innerHTML += "<input type='hidden' value='" + p + "'>";
+                    
+                    b.addEventListener("click", function() {
+                        input.value = this.getElementsByTagName("input")[0].value;
+                        listContainer.style.display = "none";
+                        verificarPatente();
+                    });
+                    listContainer.appendChild(b);
+                });
+                listContainer.style.display = "block";
+            } else {
                 listContainer.style.display = "none";
-                verificarPatente(); // Ejecución inmediata al tocar
-            });
-            listContainer.appendChild(b);
+            }
         });
-        listContainer.style.display = "block";
-    } else {
-        listContainer.style.display = "none";
-    }
-});
 
-// Cerrar lista si se hace clic fuera
-document.addEventListener("click", (e) => {
-    if (e.target !== input) listContainer.style.display = "none";
-});
+        document.addEventListener("click", (e) => {
+            if (e.target !== input) listContainer.style.display = "none";
+        });
     </script>
 </body>
 </html>
