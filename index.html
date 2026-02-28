@@ -160,23 +160,6 @@
             }, 1300);
         }
 
-// Variable global para cachear la lista de frecuentes (carga solo una vez)
-let frecuentesCache = null;
-
-async function cargarFrecuentesCache() {
-    if (frecuentesCache !== null) return frecuentesCache;
-    try {
-        const snap = await db.collection("config").doc("frecuentes").get();
-        frecuentesCache = snap.exists ? snap.data().lista || [] : [];
-        console.log("Cache de frecuentes cargado:", frecuentesCache.length);
-        return frecuentesCache;
-    } catch (e) {
-        console.error("Error cargando frecuentes:", e);
-        frecuentesCache = [];
-        return [];
-    }
-}
-
 async function verificarPatente() {
     const rawInput = document.getElementById("inputPatente").value.toUpperCase().trim();
     const patente = rawInput.replace(/-/g, "").replace(/\s+/g, "");
@@ -191,33 +174,21 @@ async function verificarPatente() {
     }
 
     try {
-        // 1. Siempre consultar si es frecuente (lista permanente)
-        await cargarFrecuentesCache();
-        const esFrecuente = frecuentesCache.includes(patente);
-
-        // 2. Verificar si existe en activos hoy
         const doc = await db.collection("activos").doc(patente).get();
-
-        // PRIORIDAD ABSOLUTA: Si es frecuente, mostrar flash celeste PRIMERO
-        if (esFrecuente) {
-            lanzarFlash("flash-frecuente");
-            
-            // Si no existe en activos hoy → mostrar "NO REGISTRADO" después del flash
-            if (!doc.exists) {
-                display.innerHTML = `<h1 style="color: #D32F2F;">NO REGISTRADO</h1>`;
-                regContainer.style.display = "block";
-                document.getElementById("patenteNueva").value = patente;
-                return;
-            }
-        }
-
-        // Si NO es frecuente o ya existe → proceder normal
+        
         if (doc.exists) {
             const data = doc.data();
             regContainer.style.display = "none";
             const tipoDb = data.tipo ? data.tipo.toLowerCase().trim() : "";
             const statusDb = data.status ? data.status.toLowerCase().trim() : "activo";
+            const esFrecuente = data.es_frecuente === true;
 
+            // PRIORIDAD: SIEMPRE mostrar flash FRECUENTE si es true
+            if (esFrecuente) {
+                lanzarFlash("flash-frecuente");
+            }
+
+            // Luego mostrar el estado normal
             if (statusDb === "finalizado") {
                 lanzarFlash("flash-pagado");
                 display.innerHTML = `
@@ -251,7 +222,6 @@ async function verificarPatente() {
                     </div>`;
             }
         } else {
-            // No frecuente y no registrada → normal "NO REGISTRADO"
             display.innerHTML = `<h1 style="color: #D32F2F;">NO REGISTRADO</h1>`;
             regContainer.style.display = "block";
             document.getElementById("patenteNueva").value = patente;
