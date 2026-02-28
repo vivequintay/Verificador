@@ -160,6 +160,23 @@
             }, 1300);
         }
 
+// Variable global para cachear la lista de frecuentes (carga solo una vez)
+let frecuentesCache = null;
+
+async function cargarFrecuentesCache() {
+    if (frecuentesCache !== null) return frecuentesCache;
+    try {
+        const snap = await db.collection("config").doc("frecuentes").get();
+        frecuentesCache = snap.exists ? snap.data().lista || [] : [];
+        console.log("Cache de frecuentes cargado:", frecuentesCache.length);
+        return frecuentesCache;
+    } catch (e) {
+        console.error("Error cargando frecuentes:", e);
+        frecuentesCache = [];
+        return [];
+    }
+}
+let frecuentesCache = null;
 async function verificarPatente() {
     const rawInput = document.getElementById("inputPatente").value.toUpperCase().trim();
     const patente = rawInput.replace(/-/g, "").replace(/\s+/g, "");
@@ -174,6 +191,10 @@ async function verificarPatente() {
     }
 
     try {
+        // Cargar cache de frecuentes si no está listo
+        await cargarFrecuentesCache();
+        const esFrecuente = frecuentesCache.includes(patente);
+
         const doc = await db.collection("activos").doc(patente).get();
         
         if (doc.exists) {
@@ -181,9 +202,8 @@ async function verificarPatente() {
             regContainer.style.display = "none";
             const tipoDb = data.tipo ? data.tipo.toLowerCase().trim() : "";
             const statusDb = data.status ? data.status.toLowerCase().trim() : "activo";
-            const esFrecuente = data.es_frecuente === true;  // ← Lee el campo que subes desde Python
 
-            // PRIORIDAD: Si es frecuente → flash celeste con corazón
+            // PRIORIDAD: Si es frecuente → flash celeste (incluso si ya está en activos)
             if (esFrecuente) {
                 lanzarFlash("flash-frecuente");
                 display.innerHTML = `
@@ -192,10 +212,10 @@ async function verificarPatente() {
                         <h2 style="margin:10px 0; font-size: 1.6rem;">Tope $4.000</h2>
                         <p style="font-weight: bold; margin: 10px 0 0 0;">Ingreso: ${data.hora || '--:--'}</p>
                     </div>`;
-                return; // Salimos para priorizar el flash frecuente
+                return;
             }
 
-            // CASO PAGADO / FINALIZADO
+            // Resto de casos...
             if (statusDb === "finalizado") {
                 lanzarFlash("flash-pagado");
                 display.innerHTML = `
@@ -204,9 +224,7 @@ async function verificarPatente() {
                         <h2 style="margin:5px 0; font-size: 1.4rem;">TICKET POR MINUTO</h2>
                         <p style="font-weight: bold; margin: 10px 0 0 0;">Hora Pago: ${data.hora_pago || '--:--'}</p>
                     </div>`;
-            } 
-            // CASO PENDIENTE
-            else if (tipoDb === "ticket por minuto") {
+            } else if (tipoDb === "ticket por minuto") {
                 if ("vibrate" in navigator) { navigator.vibrate(800); }
                 lanzarFlash("flash-pendiente");
                 display.innerHTML = `
@@ -215,9 +233,7 @@ async function verificarPatente() {
                         <h2 style="margin:5px 0; font-size: 1.4rem;">TICKET MINUTO</h2>
                         <p style="font-weight: bold; margin: 10px 0 0 0;">Ingreso: ${data.hora || '--:--'}</p>
                     </div>`;
-            } 
-            // CASO PASE DIARIO
-            else if (tipoDb === "pase diario") {
+            } else if (tipoDb === "pase diario") {
                 lanzarFlash("flash-pagado");
                 display.innerHTML = `
                     <div style="background: #00C853; color: white; padding: 25px; border-radius: 15px; border: 4px solid white;">
@@ -233,13 +249,24 @@ async function verificarPatente() {
                     </div>`;
             }
         } else {
-            display.innerHTML = `<h1 style="color: #D32F2F;">NO REGISTRADO</h1>`;
+            // NO REGISTRADO
+            if (esFrecuente) {
+                lanzarFlash("flash-frecuente");
+                display.innerHTML = `
+                    <div style="background: #42A5F5; color: white; padding: 25px; border-radius: 15px; border: 4px solid #90CAF9;">
+                        <h1 style="margin:0; font-size: 2.5rem;">FRECUENTE</h1>
+                        <h2 style="margin:10px 0; font-size: 1.6rem;">Tope $4.000</h2>
+                        <p style="font-weight: bold; margin: 10px 0 0 0;">Patente NO registrada hoy</p>
+                    </div>`;
+            } else {
+                display.innerHTML = `<h1 style="color: #D32F2F;">NO REGISTRADO</h1>`;
+            }
             regContainer.style.display = "block";
             document.getElementById("patenteNueva").value = patente;
         }
     } catch (e) {
         console.error("Error en verificarPatente:", e);
-        display.innerHTML = "<p style='color: #D32F2F;'>Error de conexión. Revisa internet o permisos en Firebase.</p>";
+        display.innerHTML = "<p style='color: #D32F2F;'>Error de conexión. Revisa internet.</p>";
     }
 }
         async function verTotalPendientes() {
