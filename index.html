@@ -103,6 +103,14 @@
         </svg>
         <h1 style="color: white; font-size: 3.5rem; font-weight: 900; margin: 0;">PENDIENTE</h1>
     </div>
+    
+    <div id="flash-frecuente" class="overlay" style="background-color: #42A5F5;">
+    <svg class="svg-icon" viewBox="0 0 24 24">
+        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+    </svg>
+    <h1 style="color: white; font-size: 4rem; font-weight: 900; margin: 0;">FRECUENTE</h1>
+    <p style="color: white; font-size: 1.8rem; margin-top: 10px; font-weight: bold;">PRIORITARIO</p>
+</div>
 
     <div style="margin-bottom: 30px;">
         <h2>VIVE QUINTAY SPA</h2>
@@ -152,7 +160,7 @@
             }, 1300);
         }
 
-       async function verificarPatente() {
+async function verificarPatente() {
     const rawInput = document.getElementById("inputPatente").value.toUpperCase().trim();
     const patente = rawInput.replace(/-/g, "").replace(/\s+/g, "");
     const display = document.getElementById("display-resultado");
@@ -166,12 +174,6 @@
     }
 
     try {
-        // 1. Obtener la lista de frecuentes desde config/frecuentes
-        const frecuentesSnap = await db.collection("config").doc("frecuentes").get();
-        const frecuentesLista = frecuentesSnap.exists ? frecuentesSnap.data().lista || [] : [];
-        const esFrecuente = frecuentesLista.includes(patente);
-
-        // 2. Verificar el documento en activos
         const doc = await db.collection("activos").doc(patente).get();
         
         if (doc.exists) {
@@ -179,17 +181,18 @@
             regContainer.style.display = "none";
             const tipoDb = data.tipo ? data.tipo.toLowerCase().trim() : "";
             const statusDb = data.status ? data.status.toLowerCase().trim() : "activo";
+            const esFrecuente = data.es_frecuente === true;  // ← Lee el campo que subes desde Python
 
-            // PRIORIDAD 1: Si es frecuente → flash celeste con corazón
+            // PRIORIDAD: Si es frecuente → flash celeste con corazón
             if (esFrecuente) {
                 lanzarFlash("flash-frecuente");
                 display.innerHTML = `
                     <div style="background: #42A5F5; color: white; padding: 25px; border-radius: 15px; border: 4px solid #90CAF9;">
                         <h1 style="margin:0; font-size: 2.5rem;">FRECUENTE</h1>
-                        <h2 style="margin:10px 0; font-size: 1.6rem;">PRIORITARIO</h2>
+                        <h2 style="margin:10px 0; font-size: 1.6rem;">Tope $4.000</h2>
                         <p style="font-weight: bold; margin: 10px 0 0 0;">Ingreso: ${data.hora || '--:--'}</p>
                     </div>`;
-                return; // Salimos para no mostrar otros estados
+                return; // Salimos para priorizar el flash frecuente
             }
 
             // CASO PAGADO / FINALIZADO
@@ -230,24 +233,13 @@
                     </div>`;
             }
         } else {
-            // NO REGISTRADO
-            if (esFrecuente) {
-                lanzarFlash("flash-frecuente");
-                display.innerHTML = `
-                    <div style="background: #42A5F5; color: white; padding: 25px; border-radius: 15px; border: 4px solid #90CAF9;">
-                        <h1 style="margin:0; font-size: 2.5rem;">FRECUENTE</h1>
-                        <h2 style="margin:10px 0; font-size: 1.6rem;">Tope $4.000</h2>
-                        <p style="font-weight: bold; margin: 10px 0 0 0;">Patente NO registrada aún</p>
-                    </div>`;
-            } else {
-                display.innerHTML = `<h1 style="color: #D32F2F;">NO REGISTRADO</h1>`;
-            }
+            display.innerHTML = `<h1 style="color: #D32F2F;">NO REGISTRADO</h1>`;
             regContainer.style.display = "block";
             document.getElementById("patenteNueva").value = patente;
         }
     } catch (e) {
-        console.error(e);
-        display.innerHTML = "<p style='color: #D32F2F;'>Error de conexión.</p>";
+        console.error("Error en verificarPatente:", e);
+        display.innerHTML = "<p style='color: #D32F2F;'>Error de conexión. Revisa internet o permisos en Firebase.</p>";
     }
 }
         async function verTotalPendientes() {
@@ -327,7 +319,6 @@ input.addEventListener("input", function() {
         return; 
     }
 
-    // PROPUESTA PROFESIONAL: 
     // .filter utiliza 'includes' para que filtre según vas sumando letras (A -> AA -> AA1)
     // .slice(0, 8) para mostrar hasta 8 sugerencias (mejor en móviles)
     const sugerencias = patentesActivasCache.filter(p => p.includes(val)).slice(0, 8);
