@@ -197,17 +197,16 @@ async function verificarPatente() {
 
         const doc = await db.collection("activos").doc(patente).get();
         
+        // PRIORIDAD: Siempre mostrar flash frecuente si es true, independientemente del estado
         if (esFrecuente) {
             lanzarFlash("flash-frecuente");
-            display.innerHTML = `
-                <div style="background: #42A5F5; color: white; padding: 25px; border-radius: 15px; border: 4px solid #90CAF9;">
-                    <h1 style="margin:0; font-size: 2.5rem;">FRECUENTE</h1>
-                    <h2 style="margin:10px 0; font-size: 1.6rem;">Tope $4.000</h2>
-                    <p style="font-weight: bold; margin: 10px 0 0 0;">Patente NO registrada hoy</p>
-                </div>`;
-            regContainer.style.display = "block";
-            document.getElementById("patenteNueva").value = patente;
-            return;
+            // Si no existe, mostrar "NO REGISTRADO" después del flash
+            if (!doc.exists) {
+                display.innerHTML = `<h1 style="color: #D32F2F;">NO REGISTRADO</h1>`;
+                regContainer.style.display = "block";
+                document.getElementById("patenteNueva").value = patente;
+                return;
+            }
         }
 
         if (doc.exists) {
@@ -258,7 +257,6 @@ async function verificarPatente() {
         display.innerHTML = "<p style='color: #D32F2F;'>Error de conexión. Revisa internet o Firebase.</p>";
     }
 }
-
         async function verTotalPendientes() {
             const listaDiv = document.getElementById("lista-pendientes");
             const display = document.getElementById("display-resultado");
