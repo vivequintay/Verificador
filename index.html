@@ -111,6 +111,14 @@
         <h1 style="color: white; font-size: 4rem; font-weight: 900; margin: 0;">FRECUENTE</h1>
         <p style="color: white; font-size: 1.8rem; margin-top: 10px; font-weight: bold;">Tope $4.000</p>
     </div>
+        <div id="flash-blacklist" class="overlay" style="background-color: #D32F2F;">
+        <svg class="svg-icon" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" fill="none" stroke="white" stroke-width="3"/>
+            <line x1="6" y1="6" x2="18" y2="18" stroke="white" stroke-width="5" stroke-linecap="round"/>
+        </svg>
+        <h1 style="color: white; font-size: 3.5rem; font-weight: 900; margin: 0;">PATENTE EN LISTA NEGRA</h1>
+        <p style="color: #FFCDD2; font-size: 1.6rem; margin-top: 15px;">Contactar Administración</p>
+    </div>
 
     <div style="margin-bottom: 30px;">
         <h2>VIVE QUINTAY SPA</h2>
@@ -161,12 +169,17 @@
         }
 function lanzarFlashBlacklist() {
     const el = document.getElementById("flash-blacklist");
+    if (!el) {
+        console.warn("No se encontró #flash-blacklist en HTML");
+        return;
+    }
+    
     el.style.display = "flex";
     el.style.opacity = "1";
     
-    // Vibración fuerte para alerta (opcional, pero recomendado en móvil)
+    // Vibración fuerte (opcional, pero muy efectivo en móvil)
     if ("vibrate" in navigator) {
-        navigator.vibrate([500, 200, 500]);  // Vibración más intensa
+        navigator.vibrate([500, 200, 500]);
     }
 
     setTimeout(() => {
@@ -175,7 +188,7 @@ function lanzarFlashBlacklist() {
         setTimeout(() => {
             el.style.display = "none";
         }, 500);
-    }, 2000);  // Duración más larga para alerta importante (2 segundos)
+    }, 2200); // 2.2 segundos para que se lea bien
 }
        async function verificarPatente() {
     const rawInput = document.getElementById("inputPatente").value.toUpperCase().trim();
@@ -203,8 +216,6 @@ function lanzarFlashBlacklist() {
             regContainer.style.display = "none";
             return;  // No continuar con otros estados
         }
-
-        // 2. Resto del código normal (frecuente, pagado, pendiente, etc.)
         const frecuentesSnap = await db.collection("config").doc("frecuentes").get();
         const frecuentesLista = frecuentesSnap.exists ? frecuentesSnap.data().lista || [] : [];
         const esFrecuente = frecuentesLista.includes(patente);
@@ -221,7 +232,6 @@ function lanzarFlashBlacklist() {
             }
         }
 
-        // ... (el resto de tu lógica de pagado/pendiente/normal sigue igual)
 
     } catch (e) {
         console.error("Error en verificarPatente:", e);
