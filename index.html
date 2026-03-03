@@ -190,61 +190,71 @@ function lanzarFlashBlacklist() {
         }, 500);
     }, 2200); // 2.2 segundos para que se lea bien
 }
-       async function verificarPatente() {
-    const rawInput = document.getElementById("inputPatente").value.toUpperCase().trim();
-    const patente = rawInput.replace(/-/g, "").replace(/\s+/g, "");
-    const display = document.getElementById("display-resultado");
-    const regContainer = document.getElementById("registro-container");
-    const listaDiv = document.getElementById("lista-pendientes");
+async function verificarPatente() {
+    const rawInput = document.getElementById("inputPatente").value.toUpperCase().trim(); [cite: 50]
+    const patente = rawInput.replace(/-/g, "").replace(/\s+/g, ""); [cite: 51]
+    const display = document.getElementById("display-resultado"); [cite: 51]
+    const regContainer = document.getElementById("registro-container"); [cite: 51]
+    const listaDiv = document.getElementById("lista-pendientes"); [cite: 51]
     
-    listaDiv.innerHTML = "";
+    listaDiv.innerHTML = ""; [cite: 52]
+    display.innerHTML = ""; 
+
     if (!patente) {
-        display.innerHTML = "<p style='color: #FFB300;'>Ingresa una patente</p>";
-        return;
+        display.innerHTML = "<p style='color: #FFB300;'>Ingresa una patente</p>"; [cite: 52]
+        return; [cite: 53]
     }
 
     try {
-        // 1. Consultar lista negra (prioridad máxima)
-        const blacklistSnap = await db.collection("config").doc("blacklist").get();
-        const blacklist = blacklistSnap.exists ? blacklistSnap.data().lista || [] : [];
-        const esBlacklist = blacklist.includes(patente);
-
-        if (esBlacklist) {
-    lanzarFlashBlacklist();
-    display.innerHTML = `
-        <h1 style="color: #D32F2F; font-size: 3.2rem; margin: 0 0 20px 0; font-weight: 900;">
-          PATENTE BLOQUEADA
-        </h1>
-        <p style="color: #FFCDD2; font-size: 1.45rem; line-height: 1.6; margin: 0 0 25px 0;">
-          Nos reservamos el derecho de admisión conforme a la legislación vigente en Chile.<br>
-          <strong>Lo sentimos, pero no podemos permitir el ingreso en este momento.</strong><br><br>
-        </p>
-        <p style="color: #B0BEC5; font-size: 1.3rem; margin: 15px 0;">
-          Por favor, contacte a Administración para cualquier consulta o aclaración.
-        </p>`;
-    regContainer.style.display = "none";
-    return;
-}
-        const frecuentesSnap = await db.collection("config").doc("frecuentes").get();
-        const frecuentesLista = frecuentesSnap.exists ? frecuentesSnap.data().lista || [] : [];
-        const esFrecuente = frecuentesLista.includes(patente);
-
-        const doc = await db.collection("activos").doc(patente).get();
-
-        if (esFrecuente) {
-            lanzarFlash("flash-frecuente");
-            if (!doc.exists) {
-                display.innerHTML = `<h1 style="color: #D32F2F;">NO REGISTRADO</h1>`;
-                regContainer.style.display = "block";
-                document.getElementById("patenteNueva").value = patente;
-                return;
-            }
+        // 1. Prioridad Máxima: Lista Negra
+        const blacklistSnap = await db.collection("config").doc("blacklist").get(); [cite: 53]
+        const blacklist = blacklistSnap.exists ? blacklistSnap.data().lista || [] : []; [cite: 54]
+        
+        if (blacklist.includes(patente)) { [cite: 54]
+            lanzarFlashBlacklist(); [cite: 55]
+            display.innerHTML = `
+                <h1 style="color: #D32F2F; font-size: 3.2rem; font-weight: 900;">BLOQUEADA</h1>
+                <p style="color: #B0BEC5; font-size: 1.3rem;">Consulte con Administración.</p>`; [cite: 55, 56, 57]
+            regContainer.style.display = "none"; [cite: 57]
+            return;
         }
 
+        // 2. Consultar si la patente está activa en el sistema
+        const doc = await db.collection("activos").doc(patente).get(); [cite: 58]
+        
+        // 3. Verificar si es Cliente Frecuente (Independiente de si está activo o no)
+        const frecuentesSnap = await db.collection("config").doc("frecuentes").get(); [cite: 57]
+        const frecuentesLista = frecuentesSnap.exists ? frecuentesSnap.data().lista || [] : []; [cite: 58]
+        const esFrecuente = frecuentesLista.includes(patente); [cite: 58]
+
+        if (esFrecuente) {
+            lanzarFlash("flash-frecuente"); [cite: 59]
+        }
+
+        // 4. Lógica de estados según la base de datos
+        if (doc.exists) {
+            const data = doc.data();
+            regContainer.style.display = "none"; [cite: 57]
+
+            if (data.status === "Pagado") {
+                lanzarFlash("flash-pagado"); // Muestra el check verde 
+                display.innerHTML = `<h1 style="color: #00C853;">PAGADO</h1>
+                                     <p style="color: white;">Puede salir del recinto.</p>`;
+            } else {
+                lanzarFlash("flash-pendiente"); // Muestra el signo de exclamación naranja [cite: 13, 32]
+                display.innerHTML = `<h1 style="color: #FF9800;">PENDIENTE</h1>
+                                     <p style="color: white;">Debe regularizar pago.</p>`;
+            }
+        } else {
+            // 5. Si no existe en 'activos', ofrecer registro
+            display.innerHTML = `<h1 style="color: #D32F2F;">NO REGISTRADO</h1>`; [cite: 60]
+            regContainer.style.display = "block"; [cite: 61]
+            document.getElementById("patenteNueva").value = patente; [cite: 61]
+        }
 
     } catch (e) {
-        console.error("Error en verificarPatente:", e);
-        display.innerHTML = "<p style='color: #D32F2F;'>Error de conexión. Revisa internet o Firebase.</p>";
+        console.error("Error en verificarPatente:", e); [cite: 61]
+        display.innerHTML = "<p style='color: #D32F2F;'>Error de conexión.</p>"; [cite: 62]
     }
 }
 
