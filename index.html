@@ -210,12 +210,25 @@ function lanzarFlashBlacklist() {
         const esBlacklist = blacklist.includes(patente);
 
         if (esBlacklist) {
-            lanzarFlashBlacklist();  // Flash rojo grande
-            display.innerHTML = `<h1 style="color: #D32F2F; font-size: 3rem;">PATENTE BLOQUEADA</h1>
-                                 <p style="color: #FFCDD2;">Verificar en Administración</p>`;
-            regContainer.style.display = "none";
-            return;  // No continuar con otros estados
-        }
+    lanzarFlashBlacklist();
+    display.innerHTML = `
+        <h1 style="color: #D32F2F; font-size: 3.2rem; margin: 0 0 20px 0; font-weight: 900;">
+          PATENTE BLOQUEADA
+        </h1>
+        <p style="color: #FFCDD2; font-size: 1.45rem; line-height: 1.6; margin: 0 0 25px 0;">
+          Nos reservamos el derecho de admisión conforme a la legislación vigente en Chile.<br>
+          <strong>Lo sentimos, pero no podemos permitir el ingreso en este momento.</strong><br><br>
+          Puede consultar más información sobre derechos y obligaciones en la 
+          <a href="https://www.sernac.cl/portal/618/w3-article-140.html" 
+             style="color:#BBDEFB; text-decoration:underline; font-weight:bold;" 
+             target="_blank">Ley del Consumidor</a>.
+        </p>
+        <p style="color: #B0BEC5; font-size: 1.3rem; margin: 15px 0;">
+          Por favor, contacte a Administración para cualquier consulta o aclaración.
+        </p>`;
+    regContainer.style.display = "none";
+    return;
+}
         const frecuentesSnap = await db.collection("config").doc("frecuentes").get();
         const frecuentesLista = frecuentesSnap.exists ? frecuentesSnap.data().lista || [] : [];
         const esFrecuente = frecuentesLista.includes(patente);
