@@ -4,13 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>VIVE QUINTAY SPA - VERIFICADOR</title>
-    
+   
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0A2F4F">
-
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-
     <style>
         body {
             background-color: #0A2F4F;
@@ -29,7 +27,6 @@
         button { width: 100%; padding: 18px; border: none; border-radius: 12px; font-weight: bold; font-size: 2.2rem; margin-top: 15px; cursor: pointer; }
         #verificar-manual { background: #2196F3; color: white; }
         #btn-total-pendientes { background: #FF9800; color: white; margin-top: 10px; font-size: 1.8rem; border: 2px solid #CC7A00; }
-
         .overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             z-index: 9999; justify-content: center; align-items: center; flex-direction: column;
@@ -37,17 +34,15 @@
         }
         #flash-pagado { background-color: #00C853; }
         #flash-pendiente { background-color: #FF9800; }
-
         .svg-icon {
             width: 180px; height: 180px; fill: white; margin-bottom: 20px;
             animation: bounceIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        
+       
         @keyframes bounceIn {
             0% { transform: scale(0.3); opacity: 0; }
             100% { transform: scale(1); opacity: 1; }
         }
-
         .card-pendiente {
             background: #0D3B5C; border-left: 5px solid #FF6B35; margin: 10px 0;
             padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;
@@ -56,7 +51,6 @@
         .txt-hora-lista { color: #B0BEC5; font-size: 0.9rem; }
         .badge-pendiente { background: #FF6B35; color: white; padding: 5px 10px; border-radius: 6px; font-weight: bold; }
         hr { border: 0.5px solid #0D3B5C; margin: 30px 0; }
-
         /* Estilo para el contenedor de sugerencias */
         .autocomplete-items {
             position: absolute;
@@ -71,7 +65,6 @@
             max-height: 200px;
             overflow-y: auto;
         }
-
         .autocomplete-items div {
             padding: 15px;
             cursor: pointer;
@@ -80,30 +73,48 @@
             font-weight: bold;
             color: #00E0D0;
         }
-
         .autocomplete-items div:last-child { border-bottom: none; }
         .autocomplete-active { background-color: #0A2F4F !important; }
-
         /* Contenedor relativo para el input */
         .autocomplete-container { position: relative; width: 100%; }
+        /* Nueva estilo para tarjetas profesionales */
+        .card-status {
+            background: #0D3B5C;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            border: 3px solid;
+            text-align: left;
+            font-size: 1.2rem;
+        }
+        .card-status h1 {
+            margin: 0 0 15px 0;
+            font-size: 2.5rem;
+            font-weight: 900;
+        }
+        .card-status p {
+            margin: 8px 0;
+            color: #B0BEC5;
+            font-weight: bold;
+        }
+        .card-pagado { border-color: #00C853; }
+        .card-pendiente { border-color: #FF9800; }
+        .card-blacklist { border-color: #D32F2F; }
     </style>
 </head>
 <body>
-
     <div id="flash-pagado" class="overlay">
         <svg class="svg-icon" viewBox="0 0 24 24">
             <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
         </svg>
         <h1 style="color: white; font-size: 4rem; font-weight: 900; margin: 0;">PAGADO</h1>
     </div>
-
     <div id="flash-pendiente" class="overlay">
         <svg class="svg-icon" viewBox="0 0 24 24">
             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
         </svg>
         <h1 style="color: white; font-size: 3.5rem; font-weight: 900; margin: 0;">PENDIENTE</h1>
     </div>
-
     <div id="flash-frecuente" class="overlay" style="background-color: #42A5F5;">
         <svg class="svg-icon" viewBox="0 0 24 24">
             <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
@@ -111,7 +122,7 @@
         <h1 style="color: white; font-size: 4rem; font-weight: 900; margin: 0;">FRECUENTE</h1>
         <p style="color: white; font-size: 1.8rem; margin-top: 10px; font-weight: bold;">Tope $4.000</p>
     </div>
-        <div id="flash-blacklist" class="overlay" style="background-color: #D32F2F;">
+    <div id="flash-blacklist" class="overlay" style="background-color: #D32F2F;">
         <svg class="svg-icon" viewBox="0 0 24 24">
             <circle cx="12" cy="12" r="10" fill="none" stroke="white" stroke-width="3"/>
             <line x1="6" y1="6" x2="18" y2="18" stroke="white" stroke-width="5" stroke-linecap="round"/>
@@ -119,32 +130,27 @@
         <h1 style="color: white; font-size: 3.5rem; font-weight: 900; margin: 0;">PATENTE EN LISTA NEGRA</h1>
         <p style="color: #FFCDD2; font-size: 1.6rem; margin-top: 15px;">Contactar Administración</p>
     </div>
-
     <div style="margin-bottom: 30px;">
         <h2>VIVE QUINTAY SPA</h2>
         <span class="status">VERIFICACIÓN DE PATENTES</span>
     </div>
-
     <div style="margin-bottom: 20px;">
         <div class="autocomplete-container" style="margin-bottom: 20px;">
             <input type="text" id="inputPatente" placeholder="BUSCAR PATENTE" autocomplete="off" />
             <div id="autocomplete-list" class="autocomplete-items" style="display:none;"></div>
         </div>
-        
+       
         <button id="verificar-manual" onclick="verificarPatente()">VERIFICAR</button>
         <button id="btn-total-pendientes" onclick="verTotalPendientes()">TOTAL PENDIENTES</button>
     </div>
-
     <hr>
     <div id="display-resultado"></div>
     <div id="lista-pendientes"></div>
-
     <div id="registro-container" style="display:none; background: #0D3B5C; padding: 25px; border-radius: 20px; border: 2px solid #FF6B35; margin-top: 20px;">
         <p style="margin: 0 0 15px 0; color: #FFB300; font-weight: bold;">NO REGISTRADO</p>
         <input type="text" id="patenteNueva" style="text-transform: uppercase; font-weight: bold;" />
         <button onclick="accionRegistrar()" style="background: #FF6B35; color: white;">REGISTRAR INGRESO POR MINUTO</button>
     </div>
-
     <script>
         const firebaseConfig = {
             projectId: "vive-quintay-spa",
@@ -153,12 +159,11 @@
         };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
-
         function lanzarFlash(elementoId) {
             const el = document.getElementById(elementoId);
             el.style.display = "flex";
             el.style.opacity = "1";
-            
+           
             setTimeout(() => {
                 el.style.transition = "opacity 0.4s ease";
                 el.style.opacity = "0";
@@ -173,15 +178,14 @@ function lanzarFlashBlacklist() {
         console.warn("No se encontró #flash-blacklist en HTML");
         return;
     }
-    
+   
     el.style.display = "flex";
     el.style.opacity = "1";
-    
+   
     // Vibración fuerte (opcional, pero muy efectivo en móvil)
     if ("vibrate" in navigator) {
         navigator.vibrate([500, 200, 500]);
     }
-
     setTimeout(() => {
         el.style.transition = "opacity 0.5s ease";
         el.style.opacity = "0";
@@ -247,15 +251,30 @@ async function verificarPatente() {
             const data = doc.data();
             if (data.status === "Pagado" || data.status === "PAGADO") {
                 lanzarFlash("flash-pagado");
-                display.innerHTML = `<h1 style="color: #00C853;">PAGADO</h1>
-                                     <p style="color: white;">Puede salir del recinto.</p>`;
+                display.innerHTML = `
+                    <div class="card-status card-pagado">
+                        <h1 style="color: #00C853;">PAGADO</h1>
+                        <p>Patente: ${patente}</p>
+                        <p>Hora de Pago: ${data.hora_pago || '--:--'}</p>
+                        <p>Puede salir del recinto.</p>
+                    </div>`;
             } else {
                 lanzarFlash("flash-pendiente");
-                display.innerHTML = `<h1 style="color: #FF9800;">PENDIENTE</h1>
-                                     <p style="color: white;">Debe regularizar pago.</p>`;
+                display.innerHTML = `
+                    <div class="card-status card-pendiente">
+                        <h1 style="color: #FF9800;">PENDIENTE</h1>
+                        <p>Patente: ${patente}</p>
+                        <p>Hora de Ingreso: ${data.hora || '--:--'}</p>
+                        <p>Debe regularizar pago en la caja.</p>
+                    </div>`;
             }
         } else {
-            display.innerHTML = `<h1 style="color: #D32F2F;">NO REGISTRADO</h1>`;
+            display.innerHTML = `
+                <div class="card-status card-pendiente">
+                    <h1 style="color: #D32F2F;">NO REGISTRADO</h1>
+                    <p>Patente: ${patente}</p>
+                    <p>No se encontró registro para hoy.</p>
+                </div>`;
             regContainer.style.display = "block";
             document.getElementById("patenteNueva").value = patente;
         }
@@ -264,7 +283,6 @@ async function verificarPatente() {
         display.innerHTML = "<p style='color: #D32F2F;'>Error de conexión. Revisa internet o Firebase.<br>Detalles: " + e.message + "</p>";
     }
 }
-
         async function verTotalPendientes() {
             const listaDiv = document.getElementById("lista-pendientes");
             const display = document.getElementById("display-resultado");
@@ -276,10 +294,10 @@ async function verificarPatente() {
                     .where("tipo", "==", "Ticket por Minuto")
                     .where("status", "==", "Activo")
                     .get();
-                                    
-                if (snapshot.empty) { 
-                    listaDiv.innerHTML = "<p style='color: #FFB300; margin-top:20px;'>NO HAY PENDIENTES</p>"; 
-                    return; 
+                                   
+                if (snapshot.empty) {
+                    listaDiv.innerHTML = "<p style='color: #FFB300; margin-top:20px;'>NO HAY PENDIENTES</p>";
+                    return;
                 }
                 let html = `<h3 style="color: #00E0D0; margin-bottom: 15px;">TOTAL PENDIENTES: ${snapshot.size}</h3>`;
                 snapshot.forEach(doc => {
@@ -291,17 +309,15 @@ async function verificarPatente() {
                 });
                 listaDiv.innerHTML = html;
                 listaDiv.scrollIntoView({ behavior: 'smooth' });
-            } catch (e) { 
-                listaDiv.innerHTML = "<p style='color: #D32F2F;'>Error al cargar lista.</p>"; 
+            } catch (e) {
+                listaDiv.innerHTML = "<p style='color: #D32F2F;'>Error al cargar lista.</p>";
             }
         }
-
         function seleccionarPatente(p) {
             document.getElementById("inputPatente").value = p;
             window.scrollTo({ top: 0, behavior: 'smooth' });
             verificarPatente();
         }
-
         async function accionRegistrar() {
             const patente = document.getElementById("patenteNueva").value.toUpperCase().trim();
             if (!patente) return;
@@ -309,8 +325,8 @@ async function verificarPatente() {
             const hora = ahora.toLocaleTimeString('es-CL');
             const fecha = ahora.toLocaleDateString('es-CL');
             try {
-                await db.collection("activos").doc(patente).set({ 
-                    patente, tipo: "Ticket por Minuto", hora, fecha, status: "Activo" 
+                await db.collection("activos").doc(patente).set({
+                    patente, tipo: "Ticket por Minuto", hora, fecha, status: "Activo"
                 });
                 document.getElementById("registro-container").style.display = "none";
                 await cargarPatentesCache();
@@ -318,10 +334,8 @@ async function verificarPatente() {
                 document.getElementById("inputPatente").value = "";
             } catch (e) { alert("Error al guardar"); }
         }
-
         // Variable global para almacenar todas las patentes (Universal)
         let patentesActivasCache = [];
-
         async function cargarPatentesCache() {
             try {
                 const snapshot = await db.collection("activos").get();
@@ -332,30 +346,27 @@ async function verificarPatente() {
             }
         }
         cargarPatentesCache();
-       
+      
         const input = document.getElementById("inputPatente");
         const listContainer = document.getElementById("autocomplete-list");
-
         input.addEventListener("input", function() {
             const val = this.value.toUpperCase().trim();
             listContainer.innerHTML = "";
-            
-            if (!val || val.length < 1) { 
-                listContainer.style.display = "none"; 
-                return; 
+           
+            if (!val || val.length < 1) {
+                listContainer.style.display = "none";
+                return;
             }
-
             const sugerencias = patentesActivasCache.filter(p => p.includes(val)).slice(0, 8);
-
             if (sugerencias.length > 0) {
                 sugerencias.forEach(p => {
                     const b = document.createElement("DIV");
-                    
+                   
                     const regex = new RegExp(`(${val})`, 'gi');
                     b.innerHTML = p.replace(regex, "<strong>$1</strong>");
-                    
+                   
                     b.innerHTML += "<input type='hidden' value='" + p + "'>";
-                    
+                   
                     b.addEventListener("click", function() {
                         input.value = this.getElementsByTagName("input")[0].value;
                         listContainer.style.display = "none";
@@ -368,7 +379,6 @@ async function verificarPatente() {
                 listContainer.style.display = "none";
             }
         });
-
         document.addEventListener("click", (e) => {
             if (e.target !== input) listContainer.style.display = "none";
         });
