@@ -166,49 +166,68 @@ async function verificarPatente() {
     const display = document.getElementById("display-resultado");
     const regContainer = document.getElementById("registro-container");
     const listaDiv = document.getElementById("lista-pendientes");
-
     listaDiv.innerHTML = "";
-    if (!patente) { 
-        display.innerHTML = "<p style='color: #FFB300;'>Ingresa una patente</p>"; 
-        return; 
+    if (!patente) {
+        display.innerHTML = "<p style='color: #FFB300;'>Ingresa una patente</p>";
+        return;
     }
-
     try {
+        // AÑADIDO: Chequeo de blacklist (prioridad máxima, antes de todo lo demás)
+        const blacklistSnap = await db.collection("config").doc("blacklist").get();
+        const blacklist = blacklistSnap.exists ? blacklistSnap.data().lista || [] : [];
+        if (blacklist.includes(patente)) {
+            lanzarFlash("flash-blacklist"); // Flash rojo grande
+            display.innerHTML = `
+                <div style="background: #D32F2F; color: white; padding: 25px; border-radius: 15px; border: 4px solid #FFCDD2;">
+                    <h1 style="margin:0; font-size: 2rem;">PATENTE BLOQUEADA</h1>
+                    <h2 style="margin:5px 0; font-size: 1.4rem;">No se permite el ingreso</h2>
+                    <p style="font-weight: bold; margin: 10px 0 0 0;">
+                        Nos reservamos el derecho de admisión conforme a la normativa vigente.
+                    </p>
+                    <p style="margin-top: 15px;">
+                        Para más información consulte la guía de la 
+                        <a href="https://www.bcn.cl/leyfacil/recurso/derecho-de-admision" 
+                           style="color:#BBDEFB; text-decoration:underline;" target="_blank">
+                           Biblioteca del Congreso Nacional
+                        </a>.
+                    </p>
+                </div>`;
+            regContainer.style.display = "none";
+            return; // No continuar con el resto
+        }
+
+        // Resto del código original sin cambios
         // 1. Consultar SIEMPRE si es frecuente desde la lista permanente
         const frecuentesSnap = await db.collection("config").doc("frecuentes").get();
         const frecuentesLista = frecuentesSnap.exists ? frecuentesSnap.data().lista || [] : [];
         const esFrecuente = frecuentesLista.includes(patente);
-
         // 2. Verificar si existe en activos hoy
         const doc = await db.collection("activos").doc(patente).get();
-        
-
+       
         // PRIORIDAD MÁXIMA: Si es frecuente, mostrar flash celeste ANTES que cualquier otra cosa
         if (esFrecuente) {
             lanzarFlash("flash-frecuente");
-            
+           
             // Si no existe hoy → mostrar NO REGISTRADO después del flash
             if (!doc.exists) {
                 display.innerHTML = `<h1 style="color: #D32F2F;">NO REGISTRADO</h1>`;
                 regContainer.style.display = "block";
                 document.getElementById("patenteNueva").value = patente;
-                return;  // Salimos aquí para no mostrar PENDIENTE
+                return; // Salimos aquí para no mostrar PENDIENTE
             }
         }
-
         // Si NO es frecuente o ya existe → proceder con el estado normal
         if (doc.exists) {
             const data = doc.data();
             regContainer.style.display = "none";
             const tipoDb = data.tipo ? data.tipo.toLowerCase().trim() : "";
             const statusDb = data.status ? data.status.toLowerCase().trim() : "activo";
-            const esFrecuente = data.es_frecuente === true;
-
+            const esFrecuente = data.es_frecuente === true; // Lee el campo subido desde Python
+           
             // PRIORIDAD: SIEMPRE mostrar flash FRECUENTE si es true
             if (esFrecuente) {
                 lanzarFlash("flash-frecuente");
             }
-
             // Luego mostrar el estado normal
             if (statusDb === "finalizado") {
                 lanzarFlash("flash-pagado");
