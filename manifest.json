@@ -7,13 +7,13 @@
   "theme_color": "#0A2F4F",
   "icons": [
     {
-      "src": "https://raw.githubusercontent.com/vivequintay/Verificador/refs/heads/main/Logo.png",
+      "src": "https://raw.githubusercontent.com/vivequintay/Verificador/refs/heads/main/logo.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "https://raw.githubusercontent.com/vivequintay/Verificador/refs/heads/main/Logo.png",
+      "src": "https://raw.githubusercontent.com/vivequintay/Verificador/refs/heads/main/logo.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
