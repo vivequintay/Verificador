@@ -29,6 +29,7 @@
         button { width: 100%; padding: 18px; border: none; border-radius: 12px; font-weight: bold; font-size: 2.2rem; margin-top: 15px; cursor: pointer; }
         #verificar-manual { background: #2196F3; color: white; }
         #btn-total-pendientes { background: #FF9800; color: white; margin-top: 10px; font-size: 1.8rem; border: 2px solid #CC7A00; }
+        #btn-ultimas-salidas { background: #00C853; color: white; margin-top: 10px; font-size: 1.8rem; border: 2px solid #00913B; }
 
         .overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -55,6 +56,11 @@
         .txt-patente-lista { color: #00E0D0; font-size: 1.4rem; font-weight: bold; }
         .txt-hora-lista { color: #B0BEC5; font-size: 0.9rem; }
         .badge-pendiente { background: #FF6B35; color: white; padding: 5px 10px; border-radius: 6px; font-weight: bold; }
+        .card-salida {
+            background: #0D3B5C; border-left: 5px solid #00C853; margin: 10px 0;
+            padding: 15px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;
+        }
+        .badge-salida { background: #00C853; color: white; padding: 5px 10px; border-radius: 6px; font-weight: bold; }
         hr { border: 0.5px solid #0D3B5C; margin: 30px 0; }
 
         /* Estilo para el contenedor de sugerencias */
@@ -134,6 +140,7 @@
 
         <button id="verificar-manual" onclick="verificarPatente()">VERIFICAR</button>
         <button id="btn-total-pendientes" onclick="verTotalPendientes()">TOTAL PENDIENTES</button>
+        <button id="btn-ultimas-salidas" onclick="verUltimasSalidas()">ÚLTIMAS 5 SALIDAS</button>
     </div>
 
     <hr>
@@ -306,6 +313,49 @@ async function verificarPatente() {
                 listaDiv.innerHTML = html;
                 listaDiv.scrollIntoView({ behavior: 'smooth' });
             } catch (e) { listaDiv.innerHTML = "<p style='color: #D32F2F;'>Error al cargar lista.</p>"; }
+        }
+
+        async function verUltimasSalidas() {
+            const listaDiv = document.getElementById("lista-pendientes");
+            const display = document.getElementById("display-resultado");
+            document.getElementById("registro-container").style.display = "none";
+            display.innerHTML = "";
+            listaDiv.innerHTML = "<p style='color: #00C853;'>Consultando salidas...</p>";
+            try {
+                // Vehículos por minuto que pagaron y salieron (siguen en 'activos' hasta el cierre)
+                const snapshot = await db.collection("activos")
+                                    .where("tipo", "==", "Ticket por Minuto")
+                                    .where("status", "==", "Finalizado")
+                                    .get();
+
+                if (snapshot.empty) {
+                    listaDiv.innerHTML = "<p style='color: #FFB300; margin-top:20px;'>NO HAY SALIDAS REGISTRADAS HOY</p>";
+                    return;
+                }
+
+                // Ordenar por hora_pago descendente y tomar las 5 más recientes
+                const docs = snapshot.docs
+                    .map(doc => ({ id: doc.id, data: doc.data() }))
+                    .sort((a, b) => (b.data.hora_pago || "").localeCompare(a.data.hora_pago || ""))
+                    .slice(0, 5);
+
+                let html = `<h3 style="color: #00C853; margin-bottom: 15px;">ÚLTIMAS ${docs.length} SALIDAS</h3>`;
+                docs.forEach(item => {
+                    const data = item.data;
+                    html += `<div class="card-salida" onclick="seleccionarPatente('${item.id}')">
+                                <div style="text-align: left;">
+                                    <span class="txt-patente-lista">${item.id}</span>
+                                    <span class="txt-hora-lista">Pago: ${data.hora_pago || '--:--'}</span>
+                                </div>
+                                <div class="badge-salida">PAGADO</div>
+                             </div>`;
+                });
+                listaDiv.innerHTML = html;
+                listaDiv.scrollIntoView({ behavior: 'smooth' });
+            } catch (e) {
+                console.error("Error en verUltimasSalidas:", e);
+                listaDiv.innerHTML = "<p style='color: #D32F2F;'>Error al cargar salidas.</p>";
+            }
         }
 
         function seleccionarPatente(p) {
