@@ -544,37 +544,38 @@
 
         // ─── Splash screen ───
         const SPLASH_INACTIVITY_MS = 5 * 60 * 1000; // 5 min sin actividad → mostrar splash
-        const SPLASH_VISIBLE_MS    = 2800;            // tiempo visible antes del fade
+        const SPLASH_VISIBLE_MS    = 4200;            // tiempo visible antes del fade
+
+        let splashMostradoEn = 0; // guard anti-duplicado
 
         function mostrarSplash() {
+            if (Date.now() - splashMostradoEn < 10000) return; // no repetir en menos de 10s
+            splashMostradoEn = Date.now();
             const s = document.getElementById("splash-screen");
-            s.style.display  = "flex";
-            s.style.opacity  = "1";
-            s.style.transition = "";
-            s.classList.remove("fade-out");
+            // Reiniciar animaciones clonando el elemento
+            const clone = s.cloneNode(true);
+            s.parentNode.replaceChild(clone, clone); // forzar reflow de animaciones
+            clone.style.display   = "flex";
+            clone.style.opacity   = "1";
+            clone.style.transition = "";
+            clone.classList.remove("fade-out");
             setTimeout(() => {
-                s.classList.add("fade-out");
-                setTimeout(() => { s.style.display = "none"; }, 450);
+                clone.classList.add("fade-out");
+                setTimeout(() => { clone.style.display = "none"; }, 450);
             }, SPLASH_VISIBLE_MS);
         }
 
-        (function initSplash() {
-            const last    = parseInt(localStorage.getItem('lastActiveTime') || '0');
-            const elapsed = Date.now() - last;
-            if (last === 0 || elapsed > SPLASH_INACTIVITY_MS) {
-                mostrarSplash();
-            } else {
-                document.getElementById("splash-screen").style.display = "none";
-            }
-            localStorage.setItem('lastActiveTime', Date.now());
-        })();
+        // Ocultar splash en carga inicial — la splash nativa del SO ya cubre ese momento.
+        // Solo mostramos la custom al despertar de inactividad.
+        document.getElementById("splash-screen").style.display = "none";
 
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
                 localStorage.setItem('lastActiveTime', Date.now());
             } else {
-                const elapsed = Date.now() - parseInt(localStorage.getItem('lastActiveTime') || '0');
-                if (elapsed > SPLASH_INACTIVITY_MS) mostrarSplash();
+                const last    = parseInt(localStorage.getItem('lastActiveTime') || '0');
+                const elapsed = Date.now() - last;
+                if (last > 0 && elapsed > SPLASH_INACTIVITY_MS) mostrarSplash();
             }
         });
 
