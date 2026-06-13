@@ -24,7 +24,47 @@
             padding: 20px;
             text-align: center;
             overflow-x: hidden;
+            transition: background-color 0.25s ease, color 0.25s ease;
         }
+
+        /* ─── Modo sol ─── */
+        body.modo-sol { background-color: #EEF4F8; color: #0A2F4F; }
+        body.modo-sol .status         { background: #cfe1ee; color: #0A2F4F; }
+        body.modo-sol .brand-spa      { color: rgba(10,47,79,0.45); }
+        body.modo-sol h2              { color: #0A2F4F; }
+        body.modo-sol .card-pendiente,
+        body.modo-sol .card-salida    { background: #d8eaf5; }
+        body.modo-sol .txt-hora-lista { color: #3d6880; }
+        body.modo-sol .autocomplete-items            { background: #d8eaf5; border-color: #0A2F4F; }
+        body.modo-sol .autocomplete-items div        { color: #0A2F4F; border-bottom-color: #b8d4e6; }
+        body.modo-sol #registro-container            { background: #d8eaf5; }
+        body.modo-sol #btn-limpiar                   { color: rgba(10,47,79,0.4); border-color: rgba(10,47,79,0.18); }
+        body.modo-sol .controles-extra               { color: rgba(10,47,79,0.5); }
+        body.modo-sol .toggle-switch                 { background: rgba(10,47,79,0.18); }
+        body.modo-sol #btn-sol                       { background: #FFD54F; color: #5D4037; border-color: #FFC107; }
+
+        /* ─── Botón modo sol (fijo esquina) ─── */
+        #btn-sol {
+            position: fixed;
+            top: 14px;
+            right: 14px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: #0D3B5C;
+            color: rgba(255,255,255,0.65);
+            border: 1.5px solid rgba(255,255,255,0.15);
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            padding: 0;
+            transition: background 0.2s, color 0.2s;
+        }
+        #btn-sol:active { transform: scale(0.92); }
 
         /* ─── Header ─── */
         .app-logo {
@@ -43,18 +83,17 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            filter: drop-shadow(0 0 18px rgba(100, 180, 100, 0.35));
+            filter: drop-shadow(0 0 18px rgba(100,180,100,0.35));
         }
         .brand-spa {
             display: block;
             font-size: 0.72rem;
             font-weight: 700;
             letter-spacing: 9px;
-            color: rgba(255, 255, 255, 0.45);
+            color: rgba(255,255,255,0.45);
             text-transform: uppercase;
             margin-bottom: 10px;
         }
-        /* fallback para h2 dentro de result-card */
         h2 {
             color: #00E0D0;
             margin: 0 0 8px 0;
@@ -78,10 +117,7 @@
             flex-shrink: 0;
             animation: dotPulse 2s infinite;
         }
-        .status-dot.offline {
-            background: #546E7A;
-            animation: none;
-        }
+        .status-dot.offline { background: #546E7A; animation: none; }
         @keyframes dotPulse {
             0%, 100% { opacity: 1; transform: scale(1); }
             50%       { opacity: 0.45; transform: scale(0.8); }
@@ -92,13 +128,11 @@
         .input-wrapper { position: relative; }
         .search-icon {
             position: absolute;
-            right: 16px;
-            top: 50%;
+            right: 16px; top: 50%;
             transform: translateY(-50%);
             pointer-events: none;
             opacity: 0.4;
-            display: flex;
-            align-items: center;
+            display: flex; align-items: center;
         }
         input[type="text"] {
             width: 100%;
@@ -115,9 +149,7 @@
             outline: none;
             transition: box-shadow 0.2s ease;
         }
-        input[type="text"]:focus {
-            box-shadow: 0 0 0 4px rgba(0, 224, 208, 0.22);
-        }
+        input[type="text"]:focus { box-shadow: 0 0 0 4px rgba(0,224,208,0.22); }
 
         /* ─── Buttons ─── */
         button {
@@ -127,12 +159,12 @@
             font-family: 'Inter', 'Segoe UI', sans-serif;
             font-weight: 800;
             cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
             transition: transform 0.1s ease, box-shadow 0.1s ease;
         }
         button:active {
             transform: scale(0.97);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
         #verificar-manual {
             background: #2196F3;
@@ -141,6 +173,17 @@
             font-size: 2.4rem;
             margin-top: 15px;
         }
+        #btn-limpiar {
+            background: transparent;
+            color: rgba(255,255,255,0.38);
+            border: 1.5px solid rgba(255,255,255,0.16);
+            padding: 11px;
+            font-size: 0.95rem;
+            letter-spacing: 2px;
+            margin-top: 10px;
+            box-shadow: none;
+        }
+        #btn-limpiar:active { background: rgba(255,255,255,0.07); box-shadow: none; }
         #btn-total-pendientes {
             background: linear-gradient(135deg, #FF9800, #F57C00);
             color: white;
@@ -154,6 +197,60 @@
             margin-top: 10px;
             font-size: 1.4rem;
             padding: 14px;
+        }
+
+        /* ─── Toggle booth + controles extra ─── */
+        .controles-extra {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 14px;
+            font-size: 0.78rem;
+            color: rgba(255,255,255,0.42);
+            cursor: pointer;
+            user-select: none;
+        }
+        .toggle-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+        #toggle-booth { display: none; }
+        .toggle-switch {
+            position: relative;
+            width: 36px; height: 20px;
+            background: rgba(255,255,255,0.15);
+            border-radius: 10px;
+            transition: background 0.2s;
+            flex-shrink: 0;
+        }
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            left: 3px; top: 3px;
+            width: 14px; height: 14px;
+            background: white;
+            border-radius: 50%;
+            transition: left 0.2s;
+        }
+        #toggle-booth:checked ~ .toggle-switch { background: #52D45A; }
+        #toggle-booth:checked ~ .toggle-switch::after { left: 19px; }
+
+        /* ─── Countdown bar ─── */
+        .booth-countdown {
+            height: 3px;
+            background: rgba(255,255,255,0.12);
+            border-radius: 2px;
+            margin-top: 12px;
+            overflow: hidden;
+        }
+        .booth-countdown-bar {
+            height: 100%;
+            background: rgba(255,255,255,0.45);
+            width: 100%;
+            transition: width 3.5s linear;
         }
 
         /* ─── Flash overlays ─── */
@@ -175,19 +272,14 @@
             width: 180px; height: 180px;
             fill: white;
             margin-bottom: 20px;
-            animation: bounceIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            animation: bounceIn 0.5s cubic-bezier(0.175,0.885,0.32,1.275);
         }
-        .flash-title {
-            font-family: 'Inter', sans-serif;
-            animation: fadeUp 0.35s ease 0.2s both;
-        }
-        .flash-subtitle {
-            animation: fadeUp 0.35s ease 0.35s both;
-        }
+        .flash-title   { font-family: 'Inter', sans-serif; animation: fadeUp 0.35s ease 0.2s both; }
+        .flash-subtitle { animation: fadeUp 0.35s ease 0.35s both; }
         .frecuente-price {
             display: inline-block;
             margin-top: 14px;
-            background: rgba(255, 255, 255, 0.22);
+            background: rgba(255,255,255,0.22);
             padding: 6px 20px;
             border-radius: 20px;
             font-size: 1.6rem;
@@ -204,10 +296,7 @@
         }
 
         /* ─── Result cards ─── */
-        .result-card {
-            padding: 25px;
-            border-radius: 16px;
-        }
+        .result-card { padding: 25px; border-radius: 16px; }
         .result-card h1 {
             margin: 0;
             font-size: 2.2rem;
@@ -227,7 +316,7 @@
             display: inline-block;
             margin-top: 12px;
             padding: 5px 14px;
-            background: rgba(0, 0, 0, 0.15);
+            background: rgba(0,0,0,0.15);
             border-radius: 20px;
             font-weight: 700;
             font-size: 0.95rem;
@@ -237,12 +326,9 @@
         .card-pendiente {
             background: #0D3B5C;
             border-left: 5px solid #FF6B35;
-            margin: 10px 0;
-            padding: 15px 18px;
+            margin: 10px 0; padding: 15px 18px;
             border-radius: 16px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            display: flex; justify-content: space-between; align-items: center;
             cursor: pointer;
             transition: transform 0.1s ease;
         }
@@ -250,46 +336,17 @@
         .card-salida {
             background: #0D3B5C;
             border-left: 5px solid #00C853;
-            margin: 10px 0;
-            padding: 15px 18px;
+            margin: 10px 0; padding: 15px 18px;
             border-radius: 16px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            display: flex; justify-content: space-between; align-items: center;
             cursor: pointer;
             transition: transform 0.1s ease;
         }
         .card-salida:active { transform: scale(0.98); }
-        .txt-patente-lista {
-            color: #00E0D0;
-            font-size: 1.4rem;
-            font-weight: 800;
-            display: block;
-        }
-        .txt-hora-lista {
-            color: #B0BEC5;
-            font-size: 0.9rem;
-            display: block;
-            margin-top: 2px;
-        }
-        .badge-pendiente {
-            background: #FF6B35;
-            color: white;
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-weight: 700;
-            font-size: 0.82rem;
-            white-space: nowrap;
-        }
-        .badge-salida {
-            background: #00C853;
-            color: white;
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-weight: 700;
-            font-size: 0.82rem;
-            white-space: nowrap;
-        }
+        .txt-patente-lista { color: #00E0D0; font-size: 1.4rem; font-weight: 800; display: block; }
+        .txt-hora-lista    { color: #B0BEC5; font-size: 0.9rem; display: block; margin-top: 2px; }
+        .badge-pendiente { background: #FF6B35; color: white; padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 0.82rem; white-space: nowrap; }
+        .badge-salida    { background: #00C853; color: white; padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 0.82rem; white-space: nowrap; }
 
         /* ─── Registro container ─── */
         #registro-container {
@@ -303,24 +360,16 @@
         /* ─── Autocomplete ─── */
         .autocomplete-items {
             position: absolute;
-            border: 2px solid #00E0D0;
-            border-top: none;
-            z-index: 99;
-            top: 100%;
-            left: 0;
-            right: 0;
+            border: 2px solid #00E0D0; border-top: none;
+            z-index: 99; top: 100%; left: 0; right: 0;
             background-color: #0D3B5C;
             border-radius: 0 0 16px 16px;
-            max-height: 200px;
-            overflow-y: auto;
+            max-height: 200px; overflow-y: auto;
         }
         .autocomplete-items div {
-            padding: 15px;
-            cursor: pointer;
+            padding: 15px; cursor: pointer;
             border-bottom: 1px solid #0A2F4F;
-            font-size: 1.3rem;
-            font-weight: 700;
-            color: #00E0D0;
+            font-size: 1.3rem; font-weight: 700; color: #00E0D0;
         }
         .autocomplete-items div:last-child { border-bottom: none; }
         .autocomplete-active { background-color: #0A2F4F !important; }
@@ -328,25 +377,23 @@
 </head>
 <body>
 
+    <!-- Botón modo sol -->
+    <button id="btn-sol" onclick="toggleModoSol()" title="Modo día / noche">☀</button>
+
+    <!-- Flash overlays -->
     <div id="flash-pagado" class="overlay">
-        <svg class="svg-icon" viewBox="0 0 24 24">
-            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
-        </svg>
-        <h1 class="flash-title" style="color:white; font-size:4rem; font-weight:900; margin:0;">PAGADO</h1>
+        <svg class="svg-icon" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+        <h1 class="flash-title" style="color:white;font-size:4rem;font-weight:900;margin:0;">PAGADO</h1>
     </div>
 
     <div id="flash-pendiente" class="overlay">
-        <svg class="svg-icon" viewBox="0 0 24 24">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
-        </svg>
-        <h1 class="flash-title" style="color:white; font-size:3.5rem; font-weight:900; margin:0;">PENDIENTE</h1>
+        <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+        <h1 class="flash-title" style="color:white;font-size:3.5rem;font-weight:900;margin:0;">PENDIENTE</h1>
     </div>
 
     <div id="flash-frecuente" class="overlay" style="background-color:#42A5F5;">
-        <svg class="svg-icon" viewBox="0 0 24 24">
-            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-        </svg>
-        <h1 class="flash-title" style="color:white; font-size:4rem; font-weight:900; margin:0;">FRECUENTE</h1>
+        <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+        <h1 class="flash-title" style="color:white;font-size:4rem;font-weight:900;margin:0;">FRECUENTE</h1>
         <div class="frecuente-price">Tope $4.000</div>
     </div>
 
@@ -355,11 +402,12 @@
             <circle cx="12" cy="12" r="10" fill="none" stroke="white" stroke-width="3"/>
             <line x1="6" y1="6" x2="18" y2="18" stroke="white" stroke-width="5" stroke-linecap="round"/>
         </svg>
-        <h1 class="flash-title" style="color:white; font-size:3.5rem; font-weight:900; margin:0;">PATENTE EN LISTA NEGRA</h1>
-        <p class="flash-subtitle" style="color:#FFCDD2; font-size:1.4rem; margin-top:10px;">Contactar Administración</p>
+        <h1 class="flash-title" style="color:white;font-size:3.5rem;font-weight:900;margin:0;">PATENTE EN LISTA NEGRA</h1>
+        <p class="flash-subtitle" style="color:#FFCDD2;font-size:1.4rem;margin-top:10px;">Contactar Administración</p>
     </div>
 
-    <div style="margin-bottom: 30px;">
+    <!-- Header -->
+    <div style="margin-bottom:30px;">
         <img src="logo.png" class="app-logo" alt="Logo">
         <h2 class="brand-title">VIVE QUINTAY</h2>
         <span class="brand-spa">SPA</span>
@@ -369,8 +417,9 @@
         </span>
     </div>
 
-    <div style="margin-bottom: 20px;">
-        <div class="autocomplete-container" style="margin-bottom: 20px;">
+    <!-- Acciones principales -->
+    <div style="margin-bottom:20px;">
+        <div class="autocomplete-container" style="margin-bottom:20px;">
             <div class="input-wrapper">
                 <input type="text" id="inputPatente" placeholder="BUSCAR PATENTE" autocomplete="off" />
                 <span class="search-icon">
@@ -383,18 +432,26 @@
         </div>
 
         <button id="verificar-manual" onclick="verificarPatente()">VERIFICAR</button>
+        <button id="btn-limpiar" onclick="limpiar()">LIMPIAR</button>
         <button id="btn-total-pendientes" onclick="verTotalPendientes()">PENDIENTES</button>
         <button id="btn-ultimas-salidas" onclick="verUltimasSalidas()">ÚLTIMAS 5 SALIDAS</button>
+
+        <!-- Toggle modo automático (booth) -->
+        <label class="controles-extra" for="toggle-booth">
+            <input type="checkbox" id="toggle-booth" onchange="toggleBooth(this.checked)">
+            <span class="toggle-switch"></span>
+            <span>Modo automático — pantalla se limpia sola</span>
+        </label>
     </div>
 
-    <div style="margin: 30px 0;"></div>
+    <div style="margin:30px 0;"></div>
     <div id="display-resultado"></div>
     <div id="lista-pendientes"></div>
 
     <div id="registro-container" style="display:none;">
-        <p style="margin: 0 0 15px 0; color: #FFB300; font-weight: 700; font-size: 1rem;">NO REGISTRADO</p>
-        <input type="text" id="patenteNueva" style="text-transform: uppercase; font-weight: bold;" />
-        <button onclick="accionRegistrar()" style="background: #FF6B35; color: white; margin-top: 12px; padding: 16px; font-size: 1.2rem;">REGISTRAR INGRESO POR MINUTO</button>
+        <p style="margin:0 0 15px 0;color:#FFB300;font-weight:700;font-size:1rem;">NO REGISTRADO</p>
+        <input type="text" id="patenteNueva" style="text-transform:uppercase;font-weight:bold;" />
+        <button onclick="accionRegistrar()" style="background:#FF6B35;color:white;margin-top:12px;padding:16px;font-size:1.2rem;">REGISTRAR INGRESO POR MINUTO</button>
     </div>
 
     <script>
@@ -406,126 +463,203 @@
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
 
-        // ─── Connectivity indicator ───
+        // ─── Conectividad ───
         function actualizarConectividad() {
-            const dot = document.getElementById("connectivity-dot");
-            dot.classList.toggle("offline", !navigator.onLine);
+            document.getElementById("connectivity-dot").classList.toggle("offline", !navigator.onLine);
         }
-        window.addEventListener('online', actualizarConectividad);
+        window.addEventListener('online',  actualizarConectividad);
         window.addEventListener('offline', actualizarConectividad);
         actualizarConectividad();
 
-        // ─── Live counter: pendientes en tiempo real ───
+        // ─── Contador en vivo ───
         db.collection("activos")
-            .where("tipo", "==", "Ticket por Minuto")
+            .where("tipo",   "==", "Ticket por Minuto")
             .where("status", "==", "Activo")
             .onSnapshot((snapshot) => {
-                const btn = document.getElementById("btn-total-pendientes");
+                const btn   = document.getElementById("btn-total-pendientes");
                 const count = snapshot.size;
                 btn.textContent = count > 0 ? `PENDIENTES (${count})` : "PENDIENTES";
-            }, (err) => {
-                console.error("Error en listener pendientes:", err);
-            });
+            }, (err) => console.error("Error en listener pendientes:", err));
 
+        // ─── Vibración diferenciada ───
+        const VIBRACIONES = {
+            pagado:    [100, 50, 100],
+            pendiente: [300, 100, 300, 100, 300],
+            frecuente: [150, 80, 150],
+            blacklist: [500, 100, 500, 100, 500, 100, 500],
+        };
+        function vibrar(tipo) {
+            if ("vibrate" in navigator) navigator.vibrate(VIBRACIONES[tipo] || [100]);
+        }
+
+        // ─── Modo booth (auto-clear) ───
+        let boothActivo = localStorage.getItem('booth') === '1';
+        let boothTimer  = null;
+
+        function toggleBooth(activo) {
+            boothActivo = activo;
+            localStorage.setItem('booth', activo ? '1' : '0');
+        }
+
+        function iniciarBoothCountdown() {
+            if (!boothActivo) return;
+            if (boothTimer) clearTimeout(boothTimer);
+
+            const display = document.getElementById("display-resultado");
+            const cd = document.createElement('div');
+            cd.className = 'booth-countdown';
+            cd.innerHTML = '<div class="booth-countdown-bar" id="booth-bar"></div>';
+            display.appendChild(cd);
+
+            // Forzar reflow para que la transición arranque desde 100%
+            const bar = document.getElementById("booth-bar");
+            bar.getBoundingClientRect();
+            bar.style.width = '0%';
+
+            boothTimer = setTimeout(() => { limpiar(); }, 3500);
+        }
+
+        function limpiar() {
+            if (boothTimer) { clearTimeout(boothTimer); boothTimer = null; }
+            document.getElementById("inputPatente").value        = "";
+            document.getElementById("display-resultado").innerHTML = "";
+            document.getElementById("lista-pendientes").innerHTML  = "";
+            document.getElementById("registro-container").style.display = "none";
+            document.getElementById("inputPatente").focus();
+        }
+
+        // Cancelar countdown al tocar el input manualmente
+        document.getElementById("inputPatente").addEventListener("focus", () => {
+            if (boothTimer) { clearTimeout(boothTimer); boothTimer = null; }
+        });
+
+        // ─── Modo sol (alto contraste) ───
+        let modoSol = localStorage.getItem('modoSol') === '1';
+
+        function toggleModoSol() {
+            modoSol = !modoSol;
+            localStorage.setItem('modoSol', modoSol ? '1' : '0');
+            aplicarModoSol();
+        }
+
+        function aplicarModoSol() {
+            document.body.classList.toggle('modo-sol', modoSol);
+            document.getElementById("btn-sol").textContent = modoSol ? '🌙' : '☀';
+        }
+
+        // ─── Restaurar preferencias guardadas ───
+        aplicarModoSol();
+        if (boothActivo) document.getElementById('toggle-booth').checked = true;
+
+        // ─── Flash ───
         function lanzarFlash(elementoId) {
             const el = document.getElementById(elementoId);
-            el.style.display = "flex";
-            el.style.opacity = "1";
+            el.style.display  = "flex";
+            el.style.opacity  = "1";
+            el.style.transition = "";
             setTimeout(() => {
                 el.style.transition = "opacity 0.4s ease";
-                el.style.opacity = "0";
+                el.style.opacity    = "0";
                 setTimeout(() => { el.style.display = "none"; }, 400);
             }, 1300);
         }
 
+        // ─── Verificar patente ───
         async function verificarPatente() {
             const rawInput = document.getElementById("inputPatente").value.toUpperCase().trim();
-            const patente = rawInput.replace(/-/g, "").replace(/\s+/g, "");
-            const display = document.getElementById("display-resultado");
-            const regContainer = document.getElementById("registro-container");
-            const listaDiv = document.getElementById("lista-pendientes");
-            listaDiv.innerHTML = "";
+            const patente  = rawInput.replace(/-/g, "").replace(/\s+/g, "");
+            const display  = document.getElementById("display-resultado");
+            const regCont  = document.getElementById("registro-container");
+            document.getElementById("lista-pendientes").innerHTML = "";
             if (!patente) {
                 display.innerHTML = "<p style='color:#FFB300;'>Ingresa una patente</p>";
                 return;
             }
             try {
+                // Blacklist
                 const blacklistSnap = await db.collection("config").doc("blacklist").get();
                 const blacklist = blacklistSnap.exists ? blacklistSnap.data().lista || [] : [];
                 if (blacklist.includes(patente)) {
+                    vibrar("blacklist");
                     lanzarFlash("flash-blacklist");
                     display.innerHTML = `
-                        <div class="result-card" style="background: linear-gradient(135deg, #D32F2F, #B71C1C); color: white;">
+                        <div class="result-card" style="background:linear-gradient(135deg,#D32F2F,#B71C1C);color:white;">
                             <h1>PATENTE BLOQUEADA</h1>
                             <h2>No se permite el ingreso</h2>
                             <span class="result-chip">Nos reservamos el derecho de admisión conforme a la normativa vigente.</span>
-                            <p style="margin-top:12px; font-size:0.85rem;">
-                                <a href="https://www.bcn.cl/leyfacil/recurso/derecho-de-admision" style="color:#BBDEFB; text-decoration:underline;" target="_blank">Guía BCN</a>
+                            <p style="margin-top:12px;font-size:0.85rem;">
+                                <a href="https://www.bcn.cl/leyfacil/recurso/derecho-de-admision" style="color:#BBDEFB;text-decoration:underline;" target="_blank">Guía BCN</a>
                             </p>
                         </div>`;
-                    regContainer.style.display = "none";
+                    regCont.style.display = "none";
+                    iniciarBoothCountdown();
                     return;
                 }
 
-                const frecuentesSnap = await db.collection("config").doc("frecuentes").get();
+                // Frecuentes
+                const frecuentesSnap  = await db.collection("config").doc("frecuentes").get();
                 const frecuentesLista = frecuentesSnap.exists ? frecuentesSnap.data().lista || [] : [];
-                const esFrecuente = frecuentesLista.includes(patente);
-                const doc = await db.collection("activos").doc(patente).get();
+                const esFrecuente     = frecuentesLista.includes(patente);
+                const doc             = await db.collection("activos").doc(patente).get();
 
                 if (esFrecuente) {
+                    vibrar("frecuente");
                     lanzarFlash("flash-frecuente");
                     if (!doc.exists) {
                         display.innerHTML = `<h1 style="color:#D32F2F;">NO REGISTRADO</h1>`;
-                        regContainer.style.display = "block";
+                        regCont.style.display = "block";
                         document.getElementById("patenteNueva").value = patente;
                         return;
                     }
                 }
 
                 if (doc.exists) {
-                    const data = doc.data();
-                    regContainer.style.display = "none";
-                    const tipoDb   = data.tipo   ? data.tipo.toLowerCase().trim()   : "";
-                    const statusDb = data.status ? data.status.toLowerCase().trim() : "activo";
-                    const esFrecuenteDoc = data.es_frecuente === true;
+                    const data       = doc.data();
+                    const tipoDb     = data.tipo   ? data.tipo.toLowerCase().trim()   : "";
+                    const statusDb   = data.status ? data.status.toLowerCase().trim() : "activo";
+                    const esFrecDoc  = data.es_frecuente === true;
+                    regCont.style.display = "none";
 
-                    if (esFrecuenteDoc) lanzarFlash("flash-frecuente");
+                    if (esFrecDoc) { vibrar("frecuente"); lanzarFlash("flash-frecuente"); }
 
                     if (statusDb === "finalizado") {
+                        vibrar("pagado");
                         lanzarFlash("flash-pagado");
                         display.innerHTML = `
-                            <div class="result-card" style="background: linear-gradient(135deg, #00C853, #00913B); color: white;">
+                            <div class="result-card" style="background:linear-gradient(135deg,#00C853,#00913B);color:white;">
                                 <h1>PAGADO</h1>
                                 <h2>TICKET POR MINUTO</h2>
                                 <span class="result-chip">Hora Pago: ${data.hora_pago || '--:--'}</span>
                             </div>`;
                     } else if (tipoDb === "ticket por minuto") {
-                        if ("vibrate" in navigator) navigator.vibrate(800);
+                        vibrar("pendiente");
                         lanzarFlash("flash-pendiente");
                         display.innerHTML = `
-                            <div class="result-card" style="background: linear-gradient(135deg, #FF9800, #F57C00); color: #1a1a1a;">
+                            <div class="result-card" style="background:linear-gradient(135deg,#FF9800,#F57C00);color:#1a1a1a;">
                                 <h1>PENDIENTE</h1>
                                 <h2>TICKET MINUTO</h2>
                                 <span class="result-chip">Ingreso: ${data.hora || '--:--'}</span>
                             </div>`;
                     } else if (tipoDb === "pase diario") {
+                        vibrar("pagado");
                         lanzarFlash("flash-pagado");
                         display.innerHTML = `
-                            <div class="result-card" style="background: linear-gradient(135deg, #00C853, #00913B); color: white;">
+                            <div class="result-card" style="background:linear-gradient(135deg,#00C853,#00913B);color:white;">
                                 <h1>PAGADO</h1>
                                 <h2>PASE DIARIO</h2>
                                 <span class="result-chip">Ingreso: ${data.hora || '--:--'}</span>
                             </div>`;
                     } else {
                         display.innerHTML = `
-                            <div class="result-card" style="background: #546E7A; color: white;">
+                            <div class="result-card" style="background:#546E7A;color:white;">
                                 <h2 style="margin:0;">TIPO: ${data.tipo}</h2>
                                 <p>Verifica en administración</p>
                             </div>`;
                     }
+                    iniciarBoothCountdown();
                 } else {
                     display.innerHTML = `<h1 style="color:#D32F2F;">NO REGISTRADO</h1>`;
-                    regContainer.style.display = "block";
+                    regCont.style.display = "block";
                     document.getElementById("patenteNueva").value = patente;
                 }
             } catch (e) {
@@ -545,11 +679,8 @@
                     .where("tipo",   "==", "Ticket por Minuto")
                     .where("status", "==", "Activo")
                     .get();
-                if (snapshot.empty) {
-                    listaDiv.innerHTML = "<p style='color:#FFB300; margin-top:20px;'>NO HAY PENDIENTES</p>";
-                    return;
-                }
-                let html = `<h3 style="color:#00E0D0; margin-bottom:15px;">TOTAL PENDIENTES: ${snapshot.size}</h3>`;
+                if (snapshot.empty) { listaDiv.innerHTML = "<p style='color:#FFB300;margin-top:20px;'>NO HAY PENDIENTES</p>"; return; }
+                let html = `<h3 style="color:#00E0D0;margin-bottom:15px;">TOTAL PENDIENTES: ${snapshot.size}</h3>`;
                 snapshot.forEach(doc => {
                     const data = doc.data();
                     html += `<div class="card-pendiente" onclick="seleccionarPatente('${doc.id}')">
@@ -562,9 +693,7 @@
                 });
                 listaDiv.innerHTML = html;
                 listaDiv.scrollIntoView({ behavior: 'smooth' });
-            } catch (e) {
-                listaDiv.innerHTML = "<p style='color:#D32F2F;'>Error al cargar lista.</p>";
-            }
+            } catch (e) { listaDiv.innerHTML = "<p style='color:#D32F2F;'>Error al cargar lista.</p>"; }
         }
 
         async function verUltimasSalidas() {
@@ -578,15 +707,12 @@
                     .where("tipo",   "==", "Ticket por Minuto")
                     .where("status", "==", "Finalizado")
                     .get();
-                if (snapshot.empty) {
-                    listaDiv.innerHTML = "<p style='color:#FFB300; margin-top:20px;'>NO HAY SALIDAS REGISTRADAS HOY</p>";
-                    return;
-                }
+                if (snapshot.empty) { listaDiv.innerHTML = "<p style='color:#FFB300;margin-top:20px;'>NO HAY SALIDAS REGISTRADAS HOY</p>"; return; }
                 const docs = snapshot.docs
                     .map(doc => ({ id: doc.id, data: doc.data() }))
                     .sort((a, b) => (b.data.hora_pago || "").localeCompare(a.data.hora_pago || ""))
                     .slice(0, 5);
-                let html = `<h3 style="color:#00C853; margin-bottom:15px;">ÚLTIMAS ${docs.length} SALIDAS</h3>`;
+                let html = `<h3 style="color:#00C853;margin-bottom:15px;">ÚLTIMAS ${docs.length} SALIDAS</h3>`;
                 docs.forEach(item => {
                     const data = item.data;
                     html += `<div class="card-salida" onclick="seleccionarPatente('${item.id}')">
@@ -599,10 +725,7 @@
                 });
                 listaDiv.innerHTML = html;
                 listaDiv.scrollIntoView({ behavior: 'smooth' });
-            } catch (e) {
-                console.error("Error en verUltimasSalidas:", e);
-                listaDiv.innerHTML = "<p style='color:#D32F2F;'>Error al cargar salidas.</p>";
-            }
+            } catch (e) { listaDiv.innerHTML = "<p style='color:#D32F2F;'>Error al cargar salidas.</p>"; }
         }
 
         function seleccionarPatente(p) {
@@ -629,14 +752,11 @@
         }
 
         let patentesActivasCache = [];
-
         async function cargarPatentesCache() {
             try {
                 const snapshot = await db.collection("activos").get();
                 patentesActivasCache = snapshot.docs.map(doc => doc.id);
-            } catch (e) {
-                console.error("Error cargando cache:", e);
-            }
+            } catch (e) { console.error("Error cargando cache:", e); }
         }
         cargarPatentesCache();
 
@@ -646,12 +766,11 @@
         input.addEventListener("input", function() {
             const val = this.value.toUpperCase().trim();
             listContainer.innerHTML = "";
-            if (!val || val.length < 1) { listContainer.style.display = "none"; return; }
-
+            if (!val) { listContainer.style.display = "none"; return; }
             const sugerencias = patentesActivasCache.filter(p => p.includes(val)).slice(0, 8);
             if (sugerencias.length > 0) {
                 sugerencias.forEach(p => {
-                    const b = document.createElement("DIV");
+                    const b     = document.createElement("DIV");
                     const regex = new RegExp(`(${val})`, 'gi');
                     b.innerHTML = p.replace(regex, "<strong>$1</strong>");
                     b.innerHTML += "<input type='hidden' value='" + p + "'>";
