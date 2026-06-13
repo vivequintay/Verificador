@@ -373,9 +373,88 @@
         }
         .autocomplete-items div:last-child { border-bottom: none; }
         .autocomplete-active { background-color: #0A2F4F !important; }
+
+        /* ─── Splash screen ─── */
+        #splash-screen {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(ellipse at center, #0E3D62 0%, #061D31 100%);
+            opacity: 1;
+            transition: opacity 0.45s ease;
+        }
+        #splash-screen.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .splash-glow {
+            position: absolute;
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            background: radial-gradient(circle,
+                rgba(123,158,255,0.28) 0%,
+                rgba(82,212,90,0.18)  45%,
+                transparent           70%);
+            animation: splashGlow 0.9s cubic-bezier(0.25,0.46,0.45,0.94) 0.15s both;
+        }
+        @keyframes splashGlow {
+            0%   { transform: scale(0.4); opacity: 0; }
+            55%  { opacity: 1; }
+            100% { transform: scale(1);   opacity: 0.6; }
+        }
+        .splash-logo {
+            width: 120px;
+            height: 120px;
+            border-radius: 26px;
+            position: relative;
+            z-index: 1;
+            animation: splashLogoRise 0.65s cubic-bezier(0.175,0.885,0.32,1.275) 0.2s both;
+        }
+        @keyframes splashLogoRise {
+            from { opacity: 0; transform: scale(0.72); }
+            to   { opacity: 1; transform: scale(1); }
+        }
+        .splash-title {
+            margin: 20px 0 5px 0;
+            font-size: 1.85rem;
+            font-weight: 900;
+            letter-spacing: 3px;
+            background: linear-gradient(90deg, #7B9EFF 0%, #52D45A 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(0 0 16px rgba(100,180,100,0.3));
+            animation: splashFadeUp 0.5s ease 0.55s both;
+        }
+        .splash-spa {
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 10px;
+            color: rgba(255,255,255,0.38);
+            text-transform: uppercase;
+            animation: splashFadeUp 0.5s ease 0.85s both;
+        }
+        @keyframes splashFadeUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
+
+    <!-- Splash screen -->
+    <div id="splash-screen">
+        <div class="splash-glow"></div>
+        <img src="logo.png" class="splash-logo" alt="Logo">
+        <h2 class="splash-title">VIVE QUINTAY</h2>
+        <span class="splash-spa">SPA</span>
+    </div>
 
     <!-- Botón modo sol -->
     <button id="btn-sol" onclick="toggleModoSol()" title="Modo día / noche">☀</button>
@@ -462,6 +541,42 @@
         };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
+
+        // ─── Splash screen ───
+        const SPLASH_INACTIVITY_MS = 5 * 60 * 1000; // 5 min sin actividad → mostrar splash
+        const SPLASH_VISIBLE_MS    = 2800;            // tiempo visible antes del fade
+
+        function mostrarSplash() {
+            const s = document.getElementById("splash-screen");
+            s.style.display  = "flex";
+            s.style.opacity  = "1";
+            s.style.transition = "";
+            s.classList.remove("fade-out");
+            setTimeout(() => {
+                s.classList.add("fade-out");
+                setTimeout(() => { s.style.display = "none"; }, 450);
+            }, SPLASH_VISIBLE_MS);
+        }
+
+        (function initSplash() {
+            const last    = parseInt(localStorage.getItem('lastActiveTime') || '0');
+            const elapsed = Date.now() - last;
+            if (last === 0 || elapsed > SPLASH_INACTIVITY_MS) {
+                mostrarSplash();
+            } else {
+                document.getElementById("splash-screen").style.display = "none";
+            }
+            localStorage.setItem('lastActiveTime', Date.now());
+        })();
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                localStorage.setItem('lastActiveTime', Date.now());
+            } else {
+                const elapsed = Date.now() - parseInt(localStorage.getItem('lastActiveTime') || '0');
+                if (elapsed > SPLASH_INACTIVITY_MS) mostrarSplash();
+            }
+        });
 
         // ─── Conectividad ───
         function actualizarConectividad() {
