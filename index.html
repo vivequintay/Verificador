@@ -32,8 +32,29 @@
             height: 62px;
             border-radius: 14px;
             display: block;
-            margin: 0 auto 10px auto;
+            margin: 0 auto 12px auto;
         }
+        .brand-title {
+            margin: 0 0 4px 0;
+            font-size: 1.65rem;
+            font-weight: 900;
+            letter-spacing: 3px;
+            background: linear-gradient(90deg, #7B9EFF 0%, #52D45A 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(0 0 18px rgba(100, 180, 100, 0.35));
+        }
+        .brand-spa {
+            display: block;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 9px;
+            color: rgba(255, 255, 255, 0.45);
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
+        /* fallback para h2 dentro de result-card */
         h2 {
             color: #00E0D0;
             margin: 0 0 8px 0;
@@ -340,7 +361,8 @@
 
     <div style="margin-bottom: 30px;">
         <img src="logo.png" class="app-logo" alt="Logo">
-        <h2>VIVE QUINTAY SPA</h2>
+        <h2 class="brand-title">VIVE QUINTAY</h2>
+        <span class="brand-spa">SPA</span>
         <span class="status">
             <span class="status-dot" id="connectivity-dot"></span>
             VERIFICACIÓN DE PATENTES
