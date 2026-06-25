@@ -12,6 +12,7 @@
 
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 
     <style>
         * { box-sizing: border-box; }
@@ -95,7 +96,7 @@
             margin-bottom: 10px;
         }
         h2 {
-            color: #00E0D0;
+            color: #8FB7D9;
             margin: 0 0 8px 0;
             letter-spacing: 2px;
             font-weight: 800;
@@ -141,7 +142,7 @@
             font-family: 'Inter', 'Segoe UI', sans-serif;
             font-weight: 700;
             border-radius: 16px;
-            border: 2px solid #00E0D0;
+            border: 2px solid #8FB7D9;
             text-align: center;
             text-transform: uppercase;
             background: #fdfdfd;
@@ -149,7 +150,7 @@
             outline: none;
             transition: box-shadow 0.2s ease;
         }
-        input[type="text"]:focus { box-shadow: 0 0 0 4px rgba(0,224,208,0.22); }
+        input[type="text"]:focus { box-shadow: 0 0 0 4px rgba(143,183,217,0.22); }
 
         /* ─── Buttons ─── */
         button {
@@ -198,6 +199,27 @@
             font-size: 1.4rem;
             padding: 14px;
         }
+        #btn-reservas {
+            background: linear-gradient(135deg, #8FB7D9, #5E91BE);
+            color: #062436;
+            margin-top: 10px;
+            font-size: 1.4rem;
+            padding: 14px;
+        }
+        /* ─── Modal RESERVAS / Escáner ─── */
+        .rmodal { display: none; position: fixed; inset: 0; z-index: 99990; background: #0A2F4F; padding: 18px; overflow-y: auto; text-align: left; }
+        .rmodal.activo { display: block; }
+        .rmodal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .rmodal-head span { font-size: 1.2rem; font-weight: 900; color: #8FB7D9; letter-spacing: 1px; }
+        .rclose { background: rgba(255,255,255,.1); color: #fff; border: none; width: 42px; height: 42px; border-radius: 10px; font-size: 1.1rem; cursor: pointer; box-shadow: none; }
+        .btn-escanear { width: 100%; border: none; border-radius: 16px; background: linear-gradient(135deg,#2196F3,#1565C0); color: #fff; padding: 18px; font-size: 1.35rem; font-weight: 800; letter-spacing: 1px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .res-card { background: #0D3B5C; border-radius: 14px; padding: 12px 16px; margin-bottom: 10px; border-left: 5px solid #00C853; }
+        .res-pat { color: #8FB7D9; font-size: 1.3rem; font-weight: 800; letter-spacing: 2px; }
+        .res-tramo { float: right; color: #B0BEC5; font-size: 0.95rem; font-weight: 700; }
+        .res-nombre { color: #fff; font-size: 0.92rem; margin-top: 3px; }
+        .op-pin-input { width: 100%; padding: 16px; font-size: 1.4rem; text-align: center; letter-spacing: 6px; border-radius: 14px; border: 2px solid #8FB7D9; background: #fdfdfd; color: #0A2F4F; outline: none; }
+        .btn-op { width: 100%; border: none; border-radius: 14px; background: #00C853; color: #062436; padding: 15px; font-size: 1.1rem; font-weight: 800; margin-top: 12px; cursor: pointer; }
+        #scanner-cam { width: 100%; max-width: 340px; margin: 0 auto; border-radius: 14px; overflow: hidden; }
 
         /* ─── Toggle booth + controles extra ─── */
         .controles-extra {
@@ -343,7 +365,7 @@
             transition: transform 0.1s ease;
         }
         .card-salida:active { transform: scale(0.98); }
-        .txt-patente-lista { color: #00E0D0; font-size: 1.4rem; font-weight: 800; display: block; }
+        .txt-patente-lista { color: #8FB7D9; font-size: 1.4rem; font-weight: 800; display: block; }
         .txt-hora-lista    { color: #B0BEC5; font-size: 0.9rem; display: block; margin-top: 2px; }
         .badge-pendiente { background: #FF6B35; color: white; padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 0.82rem; white-space: nowrap; }
         .badge-salida    { background: #00C853; color: white; padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 0.82rem; white-space: nowrap; }
@@ -360,7 +382,7 @@
         /* ─── Autocomplete ─── */
         .autocomplete-items {
             position: absolute;
-            border: 2px solid #00E0D0; border-top: none;
+            border: 2px solid #8FB7D9; border-top: none;
             z-index: 99; top: 100%; left: 0; right: 0;
             background-color: #0D3B5C;
             border-radius: 0 0 16px 16px;
@@ -369,7 +391,7 @@
         .autocomplete-items div {
             padding: 15px; cursor: pointer;
             border-bottom: 1px solid #0A2F4F;
-            font-size: 1.3rem; font-weight: 700; color: #00E0D0;
+            font-size: 1.3rem; font-weight: 700; color: #8FB7D9;
         }
         .autocomplete-items div:last-child { border-bottom: none; }
         .autocomplete-active { background-color: #0A2F4F !important; }
@@ -514,6 +536,7 @@
         <button id="verificar-manual" onclick="verificarPatente()">VERIFICAR</button>
         <button id="btn-total-pendientes" onclick="verTotalPendientes()">PENDIENTES</button>
         <button id="btn-ultimas-salidas" onclick="verUltimasSalidas()">ÚLTIMAS 5 SALIDAS</button>
+        <button id="btn-reservas" onclick="abrirReservas()">RESERVAS</button>
 
         <!-- Toggle modo automático (booth) -->
         <label class="controles-extra" for="toggle-booth">
@@ -526,6 +549,26 @@
     <div style="margin:30px 0;"></div>
     <div id="display-resultado"></div>
     <div id="lista-pendientes"></div>
+
+    <!-- Modal RESERVAS de hoy -->
+    <div id="reservas-modal" class="rmodal">
+        <div class="rmodal-head">
+            <span>RESERVAS DE HOY</span>
+            <button class="rclose" onclick="cerrarReservas()">✕</button>
+        </div>
+        <div id="res-contenido"></div>
+    </div>
+
+    <!-- Escáner QR -->
+    <div id="scanner-modal" class="rmodal">
+        <div class="rmodal-head">
+            <span>ESCANEAR QR</span>
+            <button class="rclose" onclick="detenerScanner()">✕</button>
+        </div>
+        <div id="scanner-cam"></div>
+        <p id="scanner-err" style="color:#FF8A80;text-align:center;margin-top:10px;"></p>
+        <p style="color:#B0BEC5;text-align:center;font-size:0.9rem;margin-top:8px;">Apunta la cámara al código QR de la reserva.</p>
+    </div>
 
     <div id="registro-container" style="display:none;">
         <p style="margin:0 0 15px 0;color:#FFB300;font-weight:700;font-size:1rem;">NO REGISTRADO</p>
@@ -680,6 +723,80 @@
         }
 
         // ─── Verificar patente ───
+        // ─────────── RESERVAS (operador) + escáner QR ───────────
+        const BACKEND_URL = "https://script.google.com/macros/s/AKfycbyQelJiyHIFjK3lhKEbqlGofs7pdBj2hnemfvRw1entcrlNM2KhDwErHhli1f393AGC/exec";
+        let OP_PIN = localStorage.getItem('op_pin') || "";
+        let qrScanner = null;
+
+        async function apiOp(accion) {
+            const r = await fetch(BACKEND_URL, { method: "POST", body: JSON.stringify({ accion: accion, pin: OP_PIN }) });
+            return await r.json();
+        }
+        function abrirReservas() {
+            document.getElementById('reservas-modal').classList.add('activo');
+            if (OP_PIN) cargarReservasHoy(); else pedirPinOperador("");
+        }
+        function cerrarReservas() { document.getElementById('reservas-modal').classList.remove('activo'); }
+        function pedirPinOperador(msg) {
+            document.getElementById('res-contenido').innerHTML =
+                '<div style="text-align:center;padding:20px 0">' +
+                '<p style="color:#B0BEC5;margin-bottom:14px">Ingresa el PIN de operador</p>' +
+                '<input type="password" id="op-pin-input" class="op-pin-input" inputmode="numeric" autocomplete="off">' +
+                '<p style="color:#FF8A80;min-height:18px;margin:8px 0">' + (msg || '') + '</p>' +
+                '<button class="btn-op" onclick="entrarOperador()">ENTRAR</button></div>';
+            setTimeout(function () { var i = document.getElementById('op-pin-input'); if (i) { i.focus(); i.onkeydown = function (e) { if (e.key === 'Enter') entrarOperador(); }; } }, 100);
+        }
+        async function entrarOperador() {
+            const pin = (document.getElementById('op-pin-input').value || "").trim();
+            if (!pin) return;
+            OP_PIN = pin;
+            let r; try { r = await apiOp('login_operador'); } catch (e) { r = { ok: false }; }
+            if (r.ok) { localStorage.setItem('op_pin', OP_PIN); cargarReservasHoy(); }
+            else { OP_PIN = ""; pedirPinOperador('PIN incorrecto'); }
+        }
+        async function cargarReservasHoy() {
+            document.getElementById('res-contenido').innerHTML = "<p style='text-align:center;color:#8FB7D9'>Cargando…</p>";
+            let r; try { r = await apiOp('reservas_hoy'); } catch (e) { r = { ok: false }; }
+            if (!r.ok) { OP_PIN = ""; localStorage.removeItem('op_pin'); pedirPinOperador('Reingresa el PIN'); return; }
+            renderReservasHoy(r.reservas || []);
+        }
+        function renderReservasHoy(list) {
+            let h = '<button class="btn-escanear" onclick="escanearQR()">📷 ESCANEAR QR</button>';
+            if (!list.length) {
+                h += "<p style='text-align:center;color:#B0BEC5;margin-top:22px'>No hay reservas pagadas para hoy.</p>";
+            } else {
+                h += '<p style="color:#8FB7D9;margin:16px 0 8px">Reservas de hoy: ' + list.length + '</p>';
+                list.forEach(function (r) {
+                    h += '<div class="res-card"><div><span class="res-pat">' + (r.patente || '—') + '</span>' +
+                         '<span class="res-tramo">' + (r.tramo || '') + '</span></div>' +
+                         '<div class="res-nombre">' + (r.nombre || '') + '</div></div>';
+                });
+            }
+            document.getElementById('res-contenido').innerHTML = h;
+        }
+        function escanearQR() {
+            document.getElementById('scanner-err').textContent = "";
+            document.getElementById('scanner-modal').classList.add('activo');
+            qrScanner = new Html5Qrcode('scanner-cam');
+            qrScanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: 250 },
+                function (txt) {
+                    const pat = (txt || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+                    detenerScanner();
+                    cerrarReservas();
+                    document.getElementById('inputPatente').value = pat;
+                    verificarPatente();
+                },
+                function () {}
+            ).catch(function (e) { document.getElementById('scanner-err').textContent = 'No se pudo abrir la cámara: ' + e; });
+        }
+        function detenerScanner() {
+            document.getElementById('scanner-modal').classList.remove('activo');
+            if (qrScanner) {
+                qrScanner.stop().then(function () { try { qrScanner.clear(); } catch (e) {} }).catch(function () {});
+                qrScanner = null;
+            }
+        }
+
         async function verificarPatente() {
             const rawInput = document.getElementById("inputPatente").value.toUpperCase().trim();
             const patente  = rawInput.replace(/-/g, "").replace(/\s+/g, "");
@@ -788,14 +905,14 @@
             const display  = document.getElementById("display-resultado");
             document.getElementById("registro-container").style.display = "none";
             display.innerHTML = "";
-            listaDiv.innerHTML = "<p style='color:#00E0D0;'>Consultando patio...</p>";
+            listaDiv.innerHTML = "<p style='color:#8FB7D9;'>Consultando patio...</p>";
             try {
                 const snapshot = await db.collection("activos")
                     .where("tipo",   "==", "Ticket por Minuto")
                     .where("status", "==", "Activo")
                     .get();
                 if (snapshot.empty) { listaDiv.innerHTML = "<p style='color:#FFB300;margin-top:20px;'>NO HAY PENDIENTES</p>"; return; }
-                let html = `<h3 style="color:#00E0D0;margin-bottom:15px;">TOTAL PENDIENTES: ${snapshot.size}</h3>`;
+                let html = `<h3 style="color:#8FB7D9;margin-bottom:15px;">TOTAL PENDIENTES: ${snapshot.size}</h3>`;
                 snapshot.forEach(doc => {
                     const data = doc.data();
                     html += `<div class="card-pendiente" onclick="seleccionarPatente('${doc.id}')">
