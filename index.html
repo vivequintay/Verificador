@@ -1256,12 +1256,14 @@
                 const enPatio = ocupSnap.size;
 
                 let jorns = [], jornOk = false;
-                try {
-                    const js = await db.collection("jornadas")
-                        .where("fecha", "==", now.toLocaleDateString('es-CL')).get();
-                    jorns = js.docs.map(d => d.data());
-                    jornOk = true;
-                } catch (e) { console.warn("Jornadas no disponibles:", e); }
+                if (JORNADAS_HABILITADO) {
+                    try {
+                        const js = await db.collection("jornadas")
+                            .where("fecha", "==", now.toLocaleDateString('es-CL')).get();
+                        jorns = js.docs.map(d => d.data());
+                        jornOk = true;
+                    } catch (e) { console.warn("Jornadas no disponibles:", e); }
+                }
 
                 let ingSnap, etiqueta, breakdownLabel, groupByDay, periodoTxt;
                 if (panelPeriodo === 'mes') {
@@ -1373,11 +1375,17 @@
             }
         }
 
-        // ─── Registrar jornada (Fase 4) ───
-        // Cada usuario marca inicio/fin de turno (colección 'jornadas'). Alimenta la
-        // tarjeta "Jornadas de hoy" del Panel Admin (horas trabajadas por operador).
+        // ─── Registrar jornada (Fase 4) — SUSPENDIDA por ahora ───
+        // Código completo pero OCULTO tras el flag JORNADAS_HABILITADO. Para reactivar:
+        // poner el flag en true y publicar la regla de 'jornadas' en Firestore.
+        const JORNADAS_HABILITADO = false;
         let jornadaActual = null;
         let jornadaTimer = null;
+        (function _ocultarJornadaSiSuspendida() {
+            if (JORNADAS_HABILITADO) return;
+            const bj = document.getElementById('btn-jornada');
+            if (bj) bj.style.display = 'none';
+        })();
         function _hm(d) { return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); }
         function _fmtDur(ms) { const min = Math.max(0, Math.floor(ms / 60000)); const h = Math.floor(min / 60), m = min % 60; return h + "h " + String(m).padStart(2, "0") + "m"; }
         function toggleJornada() { if (jornadaActual) terminarJornada(); else iniciarJornada(); }
@@ -1399,6 +1407,7 @@
             }
         }
         async function refrescarJornada() {
+            if (!JORNADAS_HABILITADO) return;
             if (!uidActual) { jornadaActual = null; _pintarBotonJornada(); return; }
             try {
                 const snap = await db.collection("jornadas")
