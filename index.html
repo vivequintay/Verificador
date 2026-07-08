@@ -12,6 +12,7 @@
 
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 
     <style>
@@ -470,6 +471,52 @@
 </head>
 <body>
 
+    <!-- Login (Firebase Auth) -->
+    <style>
+        #login-overlay {
+            position: fixed; inset: 0; z-index: 4000;
+            background: #0A2F4F; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; padding: 24px; gap: 12px;
+        }
+        #login-overlay .login-logo { width: 96px; height: 96px; object-fit: contain; margin-bottom: 2px; }
+        #login-overlay h1 { font-size: 1.5rem; font-weight: 900; letter-spacing: 3px; margin: 0; color: #fff; }
+        #login-overlay .login-sub { color: #8FB7D9; font-size: .78rem; letter-spacing: 4px; margin-bottom: 12px; }
+        #login-overlay input {
+            width: 100%; max-width: 290px; padding: 15px; font-size: 1.1rem; text-align: center;
+            border-radius: 12px; border: 2px solid rgba(255,255,255,.15);
+            background: rgba(255,255,255,.06); color: #fff; outline: none; font-family: inherit;
+        }
+        #login-overlay input:focus { border-color: #8FB7D9; }
+        #login-overlay input::placeholder { color: rgba(255,255,255,.4); }
+        #login-btn {
+            width: 100%; max-width: 290px; padding: 15px; font-size: 1.05rem; font-weight: 800;
+            letter-spacing: 1px; border: none; border-radius: 12px; margin-top: 4px;
+            background: #2E7D32; color: #fff; cursor: pointer; font-family: inherit;
+        }
+        #login-btn:disabled { opacity: .6; }
+        #login-error { color: #FF8A80; min-height: 20px; font-size: .9rem; }
+        #btn-logout {
+            position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
+            background: transparent; border: 1px solid rgba(255,255,255,.2);
+            color: rgba(255,255,255,.5); padding: 6px 16px; border-radius: 20px;
+            font-size: .72rem; cursor: pointer; z-index: 100; font-family: inherit;
+        }
+        body.modo-sol #btn-logout { border-color: rgba(10,47,79,.2); color: rgba(10,47,79,.5); }
+    </style>
+    <div id="login-overlay">
+        <img src="logo.png" class="login-logo" alt="Logo">
+        <h1>VERIFICADOR</h1>
+        <div class="login-sub">VIVE QUINTAY SPA</div>
+        <input type="text" id="login-user" placeholder="Usuario" autocomplete="username"
+               autocapitalize="none" autocorrect="off" spellcheck="false">
+        <input type="password" id="login-pin" placeholder="PIN (6 dígitos)" inputmode="numeric"
+               autocomplete="current-password" maxlength="6"
+               onkeydown="if(event.key==='Enter')iniciarSesion()">
+        <button id="login-btn" onclick="iniciarSesion()">ENTRAR</button>
+        <div id="login-error"></div>
+    </div>
+    <button id="btn-logout" onclick="cerrarSesion()">Cerrar sesión</button>
+
     <!-- Splash screen -->
     <div id="splash-screen">
         <div class="splash-glow"></div>
@@ -578,12 +625,65 @@
 
     <script>
         const firebaseConfig = {
+            apiKey: "AIzaSyAXGH39g0gLBjVF0XHznEoDwG3O8xrD76k",
             projectId: "vive-quintay-spa",
             authDomain: "vive-quintay-spa.firebaseapp.com",
             storageBucket: "vive-quintay-spa.appspot.com",
         };
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
+        const auth = firebase.auth();
+
+        // ─────────────── AUTENTICACIÓN (Firebase Auth) ───────────────
+        // Los usuarios se enrolan desde la caja (Python). El email se sintetiza del
+        // usuario con la MISMA regla que Python (vqspa.cloud.usuarios.email_de).
+        const DOMINIO_AUTH = "@verificador.vivequintay.cl";
+        let rolActual = null;
+        let _appIniciada = false;
+
+        const emailDeUsuario = (u) => (u || "").trim().toLowerCase() + DOMINIO_AUTH;
+
+        auth.onAuthStateChanged(async (user) => {
+            const login = document.getElementById("login-overlay");
+            if (user) {
+                try {
+                    const t = await user.getIdTokenResult();
+                    rolActual = (t.claims && t.claims.rol) || "operador";
+                } catch (e) { rolActual = "operador"; }
+                document.body.classList.toggle("es-admin", rolActual === "administrador");
+                if (login) login.style.display = "none";
+                if (!_appIniciada) { _appIniciada = true; iniciarListenerPendientes(); }
+            } else {
+                rolActual = null;
+                document.body.classList.remove("es-admin");
+                if (login) { login.style.display = "flex"; }
+            }
+        });
+
+        async function iniciarSesion() {
+            const u   = document.getElementById("login-user").value;
+            const p   = document.getElementById("login-pin").value;
+            const err = document.getElementById("login-error");
+            const btn = document.getElementById("login-btn");
+            if (!u || !u.trim()) { err.textContent = "Ingresa tu usuario."; return; }
+            if (!/^\d{6}$/.test(p)) { err.textContent = "El PIN es de 6 dígitos."; return; }
+            err.textContent = "";
+            btn.disabled = true; btn.textContent = "Entrando…";
+            try {
+                await auth.signInWithEmailAndPassword(emailDeUsuario(u), p);
+                // onAuthStateChanged oculta el login y arranca la app.
+            } catch (e) {
+                const code = (e && e.code) || "";
+                if      (code === "auth/user-disabled")         err.textContent = "Usuario desactivado. Contacta al administrador.";
+                else if (code === "auth/network-request-failed") err.textContent = "Sin conexión. Revisa tu internet.";
+                else if (code === "auth/too-many-requests")      err.textContent = "Demasiados intentos. Espera un momento.";
+                else                                             err.textContent = "Usuario o PIN incorrecto.";
+            } finally {
+                btn.disabled = false; btn.textContent = "ENTRAR";
+            }
+        }
+
+        function cerrarSesion() { try { auth.signOut(); } catch (e) {} }
 
         // ─── Splash screen ───
         const SPLASH_INACTIVITY_MS = 5 * 60 * 1000; // despertar tras 5 min → re-mostrar
@@ -629,15 +729,17 @@
         window.addEventListener('offline', actualizarConectividad);
         actualizarConectividad();
 
-        // ─── Contador en vivo ───
-        db.collection("activos")
-            .where("tipo",   "==", "Ticket por Minuto")
-            .where("status", "==", "Activo")
-            .onSnapshot((snapshot) => {
-                const btn   = document.getElementById("btn-total-pendientes");
-                const count = snapshot.size;
-                btn.textContent = count > 0 ? `PENDIENTES (${count})` : "PENDIENTES";
-            }, (err) => console.error("Error en listener pendientes:", err));
+        // ─── Contador en vivo (arranca tras autenticar; ver onAuthStateChanged) ───
+        function iniciarListenerPendientes() {
+            db.collection("activos")
+                .where("tipo",   "==", "Ticket por Minuto")
+                .where("status", "==", "Activo")
+                .onSnapshot((snapshot) => {
+                    const btn   = document.getElementById("btn-total-pendientes");
+                    const count = snapshot.size;
+                    btn.textContent = count > 0 ? `PENDIENTES (${count})` : "PENDIENTES";
+                }, (err) => console.error("Error en listener pendientes:", err));
+        }
 
         // ─── Vibración diferenciada ───
         const VIBRACIONES = {
