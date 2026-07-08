@@ -230,6 +230,20 @@
         .pnl-bar-alt { background: linear-gradient(90deg, #F57C00, #FF9800); }
         .pnl-empty { color: #7fa0bd; font-size: .9rem; text-align: center; margin: 10px 0 4px; }
         .pnl-foot { color: #5c7690; font-size: .72rem; text-align: center; margin-top: 6px; letter-spacing: 1px; }
+        .pnl-search { display: flex; gap: 8px; margin-bottom: 12px; }
+        .pnl-search input { flex: 1; min-width: 0; padding: 12px 14px; border-radius: 12px; border: 2px solid #8FB7D9; background: #fdfdfd; color: #0A2F4F; font-size: 1rem; font-weight: 700; letter-spacing: 1px; outline: none; text-transform: uppercase; }
+        .pnl-search button { width: auto; padding: 0 20px; border-radius: 12px; background: linear-gradient(135deg, #5E91BE, #8FB7D9); color: #062436; font-size: .95rem; font-weight: 800; box-shadow: none; }
+        .pnl-seg { display: flex; gap: 8px; margin-bottom: 14px; }
+        .pnl-seg-btn { flex: 1; padding: 10px; border-radius: 12px; background: rgba(255,255,255,.06); color: #8FB7D9; font-size: .9rem; letter-spacing: 1px; box-shadow: none; border: 1px solid rgba(143,183,217,.25); }
+        .pnl-seg-btn.activo { background: linear-gradient(135deg, #5C6BC0, #3949AB); color: #fff; border-color: transparent; }
+        .pnl-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+        .pnl-chip { font-size: .72rem; font-weight: 800; letter-spacing: .5px; padding: 5px 10px; border-radius: 999px; background: rgba(255,255,255,.08); color: #9fb6cc; }
+        .pnl-chip.chip-on { background: rgba(255,152,0,.18); color: #FFB74D; }
+        .pnl-chip.chip-frec { background: rgba(66,165,245,.18); color: #64B5F6; }
+        .pnl-line { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,.06); font-size: .9rem; }
+        .pnl-line:last-child { border-bottom: none; }
+        .pnl-line .l { color: #dceaf6; font-variant-numeric: tabular-nums; }
+        .pnl-line .r { color: #8FB7D9; font-weight: 700; }
         .btn-escanear { width: 100%; border: none; border-radius: 16px; background: linear-gradient(135deg,#2196F3,#1565C0); color: #fff; padding: 18px; font-size: 1.35rem; font-weight: 800; letter-spacing: 1px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         .res-card { background: #0D3B5C; border-radius: 14px; padding: 12px 16px; margin-bottom: 10px; border-left: 5px solid #00C853; }
         .res-pat { color: #8FB7D9; font-size: 1.3rem; font-weight: 800; letter-spacing: 2px; }
@@ -643,6 +657,17 @@
                 <button class="rclose" onclick="cargarPanel()" title="Actualizar">⟳</button>
                 <button class="rclose" onclick="cerrarPanel()">✕</button>
             </div>
+        </div>
+        <div class="pnl-search">
+            <input type="text" id="pnl-buscar-input" placeholder="Buscar patente…" autocomplete="off"
+                   autocapitalize="characters" spellcheck="false"
+                   onkeydown="if(event.key==='Enter')buscarPatentePanel()">
+            <button onclick="buscarPatentePanel()">Buscar</button>
+        </div>
+        <div id="panel-busqueda"></div>
+        <div class="pnl-seg">
+            <button id="pnl-seg-hoy" class="pnl-seg-btn activo" onclick="setPeriodoPanel('hoy')">HOY</button>
+            <button id="pnl-seg-mes" class="pnl-seg-btn" onclick="setPeriodoPanel('mes')">ESTE MES</button>
         </div>
         <div id="panel-contenido"></div>
     </div>
@@ -1108,9 +1133,65 @@
         // Lee 'activos' (ocupación en vivo) e 'ingresos' (log de atribución). Todo
         // OPERATIVO: cero información financiera. Los operadores no lo ven (botón oculto
         // con .solo-admin y la regla de Firestore solo deja leer 'ingresos' al admin).
+        let panelPeriodo = 'hoy';
         function abrirPanel() {
+            panelPeriodo = 'hoy';
+            const sh = document.getElementById('pnl-seg-hoy'), sm = document.getElementById('pnl-seg-mes');
+            if (sh && sm) { sh.classList.add('activo'); sm.classList.remove('activo'); }
+            const bi = document.getElementById('pnl-buscar-input'); if (bi) bi.value = "";
+            const bz = document.getElementById('panel-busqueda'); if (bz) bz.innerHTML = "";
             document.getElementById('panel-modal').classList.add('activo');
             cargarPanel();
+        }
+        function setPeriodoPanel(p) {
+            panelPeriodo = p;
+            document.getElementById('pnl-seg-hoy').classList.toggle('activo', p === 'hoy');
+            document.getElementById('pnl-seg-mes').classList.toggle('activo', p === 'mes');
+            cargarPanel();
+        }
+        async function buscarPatentePanel() {
+            const inp = document.getElementById('pnl-buscar-input');
+            const cont = document.getElementById('panel-busqueda');
+            const patente = (inp.value || "").toUpperCase().replace(/[-\s]/g, "").trim();
+            if (!patente) { cont.innerHTML = ""; return; }
+            cont.innerHTML = "<p class='pnl-empty'>Buscando…</p>";
+            try {
+                const [ingSnap, actDoc, frecDoc] = await Promise.all([
+                    db.collection("ingresos").where("patente", "==", patente).get(),
+                    db.collection("activos").doc(patente).get(),
+                    db.collection("config").doc("frecuentes").get(),
+                ]);
+                const docs = ingSnap.docs.map(d => d.data());
+                const total = docs.length;
+                docs.sort((a, b) => ((b.ts && b.ts.seconds) || 0) - ((a.ts && a.ts.seconds) || 0));
+                const frecLista = frecDoc.exists ? (frecDoc.data().lista || []) : [];
+                const esFrecuente = frecLista.includes(patente);
+                const enPatio = actDoc.exists && (actDoc.data().status || "").toLowerCase() !== "finalizado";
+                let html = `<div class="pnl-card">
+                    <div class="pnl-label">BÚSQUEDA · ${_escPanel(patente)}</div>
+                    <div class="pnl-big">${total}</div>
+                    <div class="pnl-sub">ingresos registrados (histórico)</div>
+                    <div class="pnl-chips">
+                        <span class="pnl-chip ${enPatio ? 'chip-on' : ''}">${enPatio ? 'EN PATIO AHORA' : 'No está en patio'}</span>
+                        ${esFrecuente ? '<span class="pnl-chip chip-frec">CLIENTE FRECUENTE</span>' : ''}
+                    </div>`;
+                if (total) {
+                    html += `<div class="pnl-h">Últimos ingresos</div>`;
+                    docs.slice(0, 6).forEach(x => {
+                        html += `<div class="pnl-line">
+                            <span class="l">${_escPanel(x.fecha || '—')} ${_escPanel((x.hora || '').slice(0, 5))}</span>
+                            <span class="r">${_escPanel(x.operador || '—')}</span>
+                        </div>`;
+                    });
+                } else {
+                    html += `<p class="pnl-empty">Sin ingresos registrados para esta patente.</p>`;
+                }
+                html += `</div>`;
+                cont.innerHTML = html;
+            } catch (e) {
+                console.error("Error buscando patente:", e);
+                cont.innerHTML = "<p style='color:#FF8A80;text-align:center;'>No se pudo buscar. Revisa tu conexión.</p>";
+            }
         }
         function cerrarPanel() {
             document.getElementById('panel-modal').classList.remove('activo');
@@ -1121,26 +1202,49 @@
         async function cargarPanel() {
             const cont = document.getElementById('panel-contenido');
             cont.innerHTML = "<p style='color:#8FB7D9;text-align:center;margin-top:30px;'>Cargando panel…</p>";
-            const hoy = new Date().toLocaleDateString('es-CL');
+            const now = new Date();
             try {
-                const [ocupSnap, ingSnap] = await Promise.all([
-                    db.collection("activos")
-                      .where("tipo", "==", "Ticket por Minuto")
-                      .where("status", "==", "Activo").get(),
-                    db.collection("ingresos").where("fecha", "==", hoy).get(),
-                ]);
+                const ocupSnap = await db.collection("activos")
+                    .where("tipo", "==", "Ticket por Minuto")
+                    .where("status", "==", "Activo").get();
                 const enPatio = ocupSnap.size;
+
+                let ingSnap, etiqueta, breakdownLabel, groupByDay, periodoTxt;
+                if (panelPeriodo === 'mes') {
+                    const ini = new Date(now.getFullYear(), now.getMonth(), 1);
+                    const fin = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+                    ingSnap = await db.collection("ingresos")
+                        .where("ts", ">=", ini).where("ts", "<", fin).get();
+                    etiqueta = "INGRESOS DE ESTE MES";
+                    breakdownLabel = "POR DÍA";
+                    groupByDay = true;
+                    periodoTxt = now.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
+                } else {
+                    const hoy = now.toLocaleDateString('es-CL');
+                    ingSnap = await db.collection("ingresos").where("fecha", "==", hoy).get();
+                    etiqueta = "INGRESOS DE HOY";
+                    breakdownLabel = "HORAS PUNTA (HOY)";
+                    groupByDay = false;
+                    periodoTxt = hoy;
+                }
                 const ingresos = ingSnap.docs.map(d => d.data());
-                const totalHoy = ingresos.length;
-                const porOperador = {}, porHora = {};
+                const total = ingresos.length;
+                const porOperador = {}, buckets = {};
                 ingresos.forEach(x => {
                     const op = x.operador || "—";
                     porOperador[op] = (porOperador[op] || 0) + 1;
-                    const raw = (x.hora || "").trim().split(":")[0];
-                    if (raw) { const h = raw.padStart(2, "0"); porHora[h] = (porHora[h] || 0) + 1; }
+                    let key = null;
+                    if (groupByDay) {
+                        const d = (x.ts && x.ts.toDate) ? x.ts.toDate() : null;
+                        if (d) key = String(d.getDate()).padStart(2, "0");
+                    } else {
+                        const raw = (x.hora || "").trim().split(":")[0];
+                        if (raw) key = raw.padStart(2, "0");
+                    }
+                    if (key) buckets[key] = (buckets[key] || 0) + 1;
                 });
                 const ranking = Object.entries(porOperador).sort((a, b) => b[1] - a[1]);
-                const maxHora = Math.max(1, ...Object.values(porHora));
+                const maxBucket = Math.max(1, ...Object.values(buckets));
 
                 let html = "";
                 html += `
@@ -1150,9 +1254,9 @@
                         <div class="pnl-sub">autos por minuto sin pagar</div>
                     </div>`;
                 html += `<div class="pnl-card">
-                    <div class="pnl-label">INGRESOS DE HOY</div>
-                    <div class="pnl-big">${totalHoy}</div>
-                    <div class="pnl-sub">patentes registradas hoy</div>`;
+                    <div class="pnl-label">${etiqueta}</div>
+                    <div class="pnl-big">${total}</div>
+                    <div class="pnl-sub">patentes registradas</div>`;
                 if (ranking.length) {
                     html += `<div class="pnl-h">Por operador</div>`;
                     const maxOp = ranking[0][1];
@@ -1165,27 +1269,28 @@
                         </div>`;
                     });
                 } else {
-                    html += `<p class="pnl-empty">Sin ingresos registrados hoy todavía.</p>`;
+                    html += `<p class="pnl-empty">Sin ingresos en el periodo.</p>`;
                 }
                 html += `</div>`;
                 html += `<div class="pnl-card">
-                    <div class="pnl-label">HORAS PUNTA (HOY)</div>`;
-                const horas = Object.keys(porHora).sort();
-                if (horas.length) {
-                    horas.forEach(h => {
-                        const n = porHora[h];
-                        const pct = Math.round(n / maxHora * 100);
+                    <div class="pnl-label">${breakdownLabel}</div>`;
+                const keys = Object.keys(buckets).sort();
+                if (keys.length) {
+                    keys.forEach(k => {
+                        const n = buckets[k];
+                        const pct = Math.round(n / maxBucket * 100);
+                        const lbl = groupByDay ? `Día ${k}` : `${k}:00`;
                         html += `<div class="pnl-row">
-                            <span class="pnl-row-name">${h}:00</span>
+                            <span class="pnl-row-name">${lbl}</span>
                             <div class="pnl-bar-wrap"><div class="pnl-bar pnl-bar-alt" style="width:${pct}%"></div></div>
                             <span class="pnl-row-num">${n}</span>
                         </div>`;
                     });
                 } else {
-                    html += `<p class="pnl-empty">Sin datos de horas todavía.</p>`;
+                    html += `<p class="pnl-empty">Sin datos todavía.</p>`;
                 }
                 html += `</div>`;
-                html += `<p class="pnl-foot">Datos operativos en tiempo real · ${hoy}</p>`;
+                html += `<p class="pnl-foot">Datos operativos · ${periodoTxt}</p>`;
                 cont.innerHTML = html;
             } catch (e) {
                 console.error("Error cargando panel:", e);
