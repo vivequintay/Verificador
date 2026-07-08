@@ -639,6 +639,8 @@
         // usuario con la MISMA regla que Python (vqspa.cloud.usuarios.email_de).
         const DOMINIO_AUTH = "@verificador.vivequintay.cl";
         let rolActual = null;
+        let uidActual = null;
+        let usuarioActual = null;
         let _appIniciada = false;
 
         const emailDeUsuario = (u) => (u || "").trim().toLowerCase() + DOMINIO_AUTH;
@@ -651,10 +653,14 @@
                     rolActual = (t.claims && t.claims.rol) || "operador";
                 } catch (e) { rolActual = "operador"; }
                 document.body.classList.toggle("es-admin", rolActual === "administrador");
+                uidActual = user.uid;
+                usuarioActual = user.displayName || (user.email || "").split("@")[0];
                 if (login) login.style.display = "none";
                 if (!_appIniciada) { _appIniciada = true; iniciarListenerPendientes(); }
             } else {
                 rolActual = null;
+                uidActual = null;
+                usuarioActual = null;
                 document.body.classList.remove("es-admin");
                 if (login) { login.style.display = "flex"; }
             }
@@ -1068,16 +1074,42 @@
             verificarPatente();
         }
 
+        // ─── Atribución de ingresos (Fase 1) ───
+        // Log append-only e inmutable: quién ingresó cada patente y cuándo. Sobrevive
+        // aunque el activo se borre/sobrescriba al pagar o salir; es el cimiento de la
+        // analítica del panel Admin (Fase 2). NO bloquea el flujo de terreno: si falla
+        // (p. ej. reglas de Firestore aún no publicadas), solo se omite en silencio.
+        async function registrarIngreso(patente, tipo, fecha, hora) {
+            if (!uidActual) return;
+            try {
+                await db.collection("ingresos").add({
+                    patente,
+                    operador_uid: uidActual,
+                    operador: usuarioActual || "",
+                    tipo, fecha, hora,
+                    origen: "verificador",
+                    ts: firebase.firestore.FieldValue.serverTimestamp(),
+                });
+            } catch (e) {
+                console.warn("No se pudo registrar la atribución del ingreso:", e);
+            }
+        }
+
         async function accionRegistrar() {
             const patente = document.getElementById("patenteNueva").value.toUpperCase().trim();
             if (!patente) return;
+            if (!uidActual) { alert("Tu sesión expiró. Vuelve a iniciar sesión."); return; }
             const ahora = new Date();
             const hora  = ahora.toLocaleTimeString('es-CL');
             const fecha = ahora.toLocaleDateString('es-CL');
             try {
                 await db.collection("activos").doc(patente).set({
-                    patente, tipo: "Ticket por Minuto", hora, fecha, status: "Activo"
+                    patente, tipo: "Ticket por Minuto", hora, fecha, status: "Activo",
+                    operador_uid: uidActual,
+                    operador: usuarioActual || "",
+                    ingreso_ts: firebase.firestore.FieldValue.serverTimestamp()
                 });
+                registrarIngreso(patente, "Ticket por Minuto", fecha, hora); // atribución (no bloqueante)
                 document.getElementById("registro-container").style.display = "none";
                 await cargarPatentesCache();
                 verificarPatente();
