@@ -244,6 +244,22 @@
         .pnl-line:last-child { border-bottom: none; }
         .pnl-line .l { color: #dceaf6; font-variant-numeric: tabular-nums; }
         .pnl-line .r { color: #8FB7D9; font-weight: 700; }
+        /* ─── Reimprimir Pases (Fase 3) ─── */
+        #btn-pases { background: linear-gradient(135deg, #3949AB, #283593); color: #fff; margin-top: 10px; font-size: 1.4rem; padding: 14px; }
+        .pnl-controls { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
+        .pnl-controls .chk-all { display: flex; align-items: center; gap: 6px; color: #8FB7D9; font-size: .9rem; font-weight: 700; cursor: pointer; }
+        .pnl-controls .chk-all input { width: 20px; height: 20px; accent-color: #5C6BC0; }
+        #btn-imprimir-sel { width: auto; flex: 1; min-width: 170px; padding: 12px; border-radius: 12px; background: linear-gradient(135deg, #5C6BC0, #3949AB); color: #fff; font-size: 1rem; box-shadow: none; }
+        .pase-row { display: flex; align-items: center; gap: 10px; background: #0D3B5C; border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; }
+        .pase-row input.pase-chk { width: 22px; height: 22px; accent-color: #5C6BC0; flex: none; }
+        .pase-info { flex: 1; display: flex; flex-direction: column; cursor: pointer; min-width: 0; }
+        .pase-pat { color: #fff; font-size: 1.25rem; font-weight: 800; letter-spacing: 1px; }
+        .pase-meta { color: #8FB7D9; font-size: .8rem; font-variant-numeric: tabular-nums; }
+        .pg-si { color: #66BB6A; font-weight: 800; }
+        .pg-no { color: #FFB74D; font-weight: 800; }
+        .pase-print { width: auto; padding: 8px 12px; border-radius: 10px; background: rgba(255,255,255,.08); color: #fff; font-size: 1.1rem; box-shadow: none; flex: none; }
+        .pases-hint { color: #7fa0bd; font-size: .75rem; text-align: center; margin-top: 12px; line-height: 1.5; }
+        .pases-hint a { color: #8FB7D9; }
         .btn-escanear { width: 100%; border: none; border-radius: 16px; background: linear-gradient(135deg,#2196F3,#1565C0); color: #fff; padding: 18px; font-size: 1.35rem; font-weight: 800; letter-spacing: 1px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         .res-card { background: #0D3B5C; border-radius: 14px; padding: 12px 16px; margin-bottom: 10px; border-left: 5px solid #00C853; }
         .res-pat { color: #8FB7D9; font-size: 1.3rem; font-weight: 800; letter-spacing: 2px; }
@@ -616,6 +632,7 @@
         <button id="btn-ultimas-salidas" onclick="verUltimasSalidas()">ÚLTIMAS 5 SALIDAS</button>
         <button id="btn-reservas" onclick="abrirReservas()">RESERVAS</button>
         <button id="btn-panel" class="solo-admin" onclick="abrirPanel()">PANEL ADMIN</button>
+        <button id="btn-pases" class="solo-admin" onclick="abrirPases()">REIMPRIMIR PASES</button>
 
         <!-- Toggle modo automático (booth) -->
         <label class="controles-extra" for="toggle-booth">
@@ -670,6 +687,25 @@
             <button id="pnl-seg-mes" class="pnl-seg-btn" onclick="setPeriodoPanel('mes')">ESTE MES</button>
         </div>
         <div id="panel-contenido"></div>
+    </div>
+
+    <!-- Reimprimir Pases Diarios (Fase 3) — solo admin -->
+    <div id="pases-modal" class="rmodal">
+        <div class="rmodal-head">
+            <span>REIMPRIMIR PASES</span>
+            <div style="display:flex;gap:8px;">
+                <button class="rclose" onclick="cargarPases()" title="Actualizar">⟳</button>
+                <button class="rclose" onclick="cerrarPases()">✕</button>
+            </div>
+        </div>
+        <div class="pnl-controls">
+            <label class="chk-all"><input type="checkbox" id="pase-todas" onchange="seleccionarTodasPases(this.checked)"> Todas</label>
+            <button id="btn-imprimir-sel" onclick="imprimirSeleccionadas()">Imprimir seleccionadas</button>
+        </div>
+        <div id="pases-lista"></div>
+        <p class="pases-hint">Se imprime por Bluetooth vía <b>RawBT</b>. Si no imprime, instala
+            <a href="https://play.google.com/store/apps/details?id=ru.a402d.rawbtprinter" target="_blank" rel="noopener">RawBT</a>
+            y parea tu impresora una vez.</p>
     </div>
 
     <div id="registro-container" style="display:none;">
@@ -1295,6 +1331,147 @@
             } catch (e) {
                 console.error("Error cargando panel:", e);
                 cont.innerHTML = "<p style='color:#FF8A80;text-align:center;margin-top:30px;'>No se pudo cargar el panel. Revisa tu conexión.</p>";
+            }
+        }
+
+        // ─── Reimprimir Pases Diarios (Fase 3) — solo admin ───
+        // Lee los Pase Diario de 'activos' (ya pagados en la caja), los lista y reimprime
+        // por Bluetooth vía RawBT (rawbt:data:image/png;base64,...). Cero plata: NO muestra
+        // ni imprime monto ni método de pago (solo estado PAGADO/PENDIENTE). La caja manda.
+        let _pasesCache = [];
+        let logoOk = false;
+        const LOGO_IMG = new Image();
+        LOGO_IMG.onload = () => { logoOk = true; };
+        LOGO_IMG.onerror = () => { logoOk = false; };
+        LOGO_IMG.src = "logo.png";
+
+        function abrirPases() {
+            const t = document.getElementById('pase-todas'); if (t) t.checked = false;
+            document.getElementById('pases-modal').classList.add('activo');
+            cargarPases();
+        }
+        function cerrarPases() {
+            document.getElementById('pases-modal').classList.remove('activo');
+        }
+        async function cargarPases() {
+            const cont = document.getElementById('pases-lista');
+            cont.innerHTML = "<p class='pnl-empty'>Cargando pases…</p>";
+            try {
+                const snap = await db.collection("activos").where("tipo", "==", "Pase Diario").get();
+                _pasesCache = snap.docs.map(d => d.data())
+                    .sort((a, b) => (a.hora || "").localeCompare(b.hora || ""));
+                if (!_pasesCache.length) {
+                    cont.innerHTML = "<p class='pnl-empty'>No hay pases diarios registrados.</p>";
+                    _actualizarContadorPases();
+                    return;
+                }
+                let html = "";
+                _pasesCache.forEach((p, i) => {
+                    const pagado = p.pago === 'SI';
+                    html += `<div class="pase-row">
+                        <input type="checkbox" class="pase-chk" data-i="${i}" ${pagado ? 'checked' : ''} onchange="_actualizarContadorPases()">
+                        <div class="pase-info">
+                            <span class="pase-pat">${_escPanel(p.patente || '—')}</span>
+                            <span class="pase-meta">${_escPanel(p.hora || '')} · <span class="${pagado ? 'pg-si' : 'pg-no'}">${pagado ? 'PAGADO' : 'PENDIENTE'}</span></span>
+                        </div>
+                        <button class="pase-print" onclick="imprimirPaseUno(${i})" title="Imprimir">🖨</button>
+                    </div>`;
+                });
+                cont.innerHTML = html;
+                _actualizarContadorPases();
+            } catch (e) {
+                console.error("Error cargando pases:", e);
+                cont.innerHTML = "<p style='color:#FF8A80;text-align:center;'>No se pudieron cargar los pases.</p>";
+            }
+        }
+        function _pasesSeleccionados() {
+            return Array.from(document.querySelectorAll('.pase-chk:checked'))
+                .map(c => _pasesCache[parseInt(c.dataset.i, 10)]).filter(Boolean);
+        }
+        function _actualizarContadorPases() {
+            const n = document.querySelectorAll('.pase-chk:checked').length;
+            const btn = document.getElementById('btn-imprimir-sel');
+            if (btn) btn.textContent = n > 0 ? `Imprimir seleccionadas (${n})` : "Imprimir seleccionadas";
+        }
+        function seleccionarTodasPases(marcar) {
+            document.querySelectorAll('.pase-chk').forEach(c => { c.checked = marcar; });
+            _actualizarContadorPases();
+        }
+        function imprimirPaseUno(i) {
+            const p = _pasesCache[i];
+            if (p) _imprimirCanvas(_construirCanvasPases([p]));
+        }
+        function imprimirSeleccionadas() {
+            const sel = _pasesSeleccionados();
+            if (!sel.length) { alert("Marca al menos un pase para imprimir."); return; }
+            _imprimirCanvas(_construirCanvasPases(sel));
+        }
+
+        // ── Render del ticket en canvas (384px = estándar 58mm) ──
+        function _linea(ctx, W, y, margen) {
+            margen = margen || 20;
+            ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.setLineDash([]);
+            ctx.beginPath(); ctx.moveTo(margen, y); ctx.lineTo(W - margen, y); ctx.stroke();
+        }
+        function _separador(ctx, W, y) {
+            ctx.strokeStyle = "#999"; ctx.lineWidth = 2; ctx.setLineDash([6, 6]);
+            ctx.beginPath(); ctx.moveTo(10, y); ctx.lineTo(W - 10, y); ctx.stroke();
+            ctx.setLineDash([]);
+        }
+        function _dibujarPase(ctx, W, y, p) {
+            const cx = W / 2;
+            ctx.fillStyle = "#000"; ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+            y += 42; ctx.font = "bold 34px sans-serif"; ctx.fillText("PASE DIARIO", cx, y);
+            y += 16; _linea(ctx, W, y);
+            y += 34; ctx.font = "15px sans-serif"; ctx.fillText("PATENTE", cx, y);
+            y += 56; ctx.font = "bold 58px sans-serif"; ctx.fillText((p.patente || "").toUpperCase(), cx, y);
+            y += 20; _linea(ctx, W, y);
+            y += 46; ctx.font = "bold 30px sans-serif"; ctx.fillText(p.pago === 'SI' ? "PAGADO" : "PENDIENTE", cx, y);
+            y += 34; ctx.font = "bold 16px sans-serif"; ctx.fillText("VÁLIDO SOLO EL DÍA DE EMISIÓN", cx, y);
+            y += 22; ctx.font = "14px sans-serif"; ctx.fillText("Conserve este comprobante", cx, y);
+            y += 28; ctx.font = "14px sans-serif"; ctx.fillText(`EMITIDO: ${p.fecha || ''} ${p.hora || ''}`, cx, y);
+            y += 18; _linea(ctx, W, y, 90);
+            if (logoOk && LOGO_IMG.width) {
+                let lw = 170, lh = LOGO_IMG.height * (lw / LOGO_IMG.width);
+                if (lh > 120) { lh = 120; lw = LOGO_IMG.width * (lh / LOGO_IMG.height); }
+                y += 16; ctx.drawImage(LOGO_IMG, cx - lw / 2, y, lw, lh); y += lh + 8;
+            } else {
+                y += 26; ctx.font = "bold 18px sans-serif"; ctx.fillText("VIVE QUINTAY · SPA", cx, y); y += 6;
+            }
+            return y;
+        }
+        function _construirCanvasPases(lista) {
+            const W = 384;
+            const estim = logoOk ? 540 : 420;
+            const GAP = 36;
+            const big = document.createElement('canvas');
+            big.width = W; big.height = lista.length * (estim + GAP) + 60;
+            const ctx = big.getContext('2d');
+            ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, big.width, big.height);
+            let y = 8;
+            lista.forEach((p, i) => {
+                y = _dibujarPase(ctx, W, y, p);
+                if (i < lista.length - 1) { y += 18; _separador(ctx, W, y); y += 18; }
+            });
+            y += 24;
+            const out = document.createElement('canvas');
+            out.width = W; out.height = Math.max(1, Math.ceil(y));
+            const octx = out.getContext('2d');
+            octx.fillStyle = "#fff"; octx.fillRect(0, 0, W, out.height);
+            octx.drawImage(big, 0, 0);
+            return out;
+        }
+        function _imprimirCanvas(canvas) {
+            try {
+                const dataUrl = canvas.toDataURL("image/png");
+                const a = document.createElement('a');
+                a.href = "rawbt:" + dataUrl;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            } catch (e) {
+                console.error("Error al enviar a RawBT:", e);
+                alert("No se pudo enviar a la impresora. ¿Está instalado RawBT?");
             }
         }
 
