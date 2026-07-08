@@ -213,6 +213,23 @@
         .rmodal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
         .rmodal-head span { font-size: 1.2rem; font-weight: 900; color: #8FB7D9; letter-spacing: 1px; }
         .rclose { background: rgba(255,255,255,.1); color: #fff; border: none; width: 42px; height: 42px; border-radius: 10px; font-size: 1.1rem; cursor: pointer; box-shadow: none; }
+        /* ─── Panel Admin (Fase 2) — visible solo para rol administrador ─── */
+        .solo-admin { display: none; }
+        body.es-admin .solo-admin { display: block; }
+        #btn-panel { background: linear-gradient(135deg, #5C6BC0, #3949AB); color: #fff; margin-top: 10px; font-size: 1.4rem; padding: 14px; }
+        .pnl-card { background: #0D3B5C; border-radius: 16px; padding: 18px; margin-bottom: 14px; }
+        .pnl-label { color: #8FB7D9; font-size: .78rem; font-weight: 800; letter-spacing: 2px; }
+        .pnl-big { color: #fff; font-size: 3rem; font-weight: 900; line-height: 1.05; }
+        .pnl-sub { color: #7fa0bd; font-size: .82rem; margin-top: 2px; }
+        .pnl-h { color: #8FB7D9; font-size: .9rem; font-weight: 800; letter-spacing: 1px; margin: 16px 0 10px; border-top: 1px solid rgba(143,183,217,.18); padding-top: 12px; }
+        .pnl-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+        .pnl-row-name { color: #dceaf6; font-size: .95rem; font-weight: 700; min-width: 64px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .pnl-row-num { color: #fff; font-size: 1rem; font-weight: 800; min-width: 28px; text-align: right; font-variant-numeric: tabular-nums; }
+        .pnl-bar-wrap { flex: 1; background: rgba(255,255,255,.07); border-radius: 8px; height: 14px; overflow: hidden; }
+        .pnl-bar { height: 100%; background: linear-gradient(90deg, #5E91BE, #8FB7D9); border-radius: 8px; }
+        .pnl-bar-alt { background: linear-gradient(90deg, #F57C00, #FF9800); }
+        .pnl-empty { color: #7fa0bd; font-size: .9rem; text-align: center; margin: 10px 0 4px; }
+        .pnl-foot { color: #5c7690; font-size: .72rem; text-align: center; margin-top: 6px; letter-spacing: 1px; }
         .btn-escanear { width: 100%; border: none; border-radius: 16px; background: linear-gradient(135deg,#2196F3,#1565C0); color: #fff; padding: 18px; font-size: 1.35rem; font-weight: 800; letter-spacing: 1px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         .res-card { background: #0D3B5C; border-radius: 14px; padding: 12px 16px; margin-bottom: 10px; border-left: 5px solid #00C853; }
         .res-pat { color: #8FB7D9; font-size: 1.3rem; font-weight: 800; letter-spacing: 2px; }
@@ -584,6 +601,7 @@
         <button id="btn-total-pendientes" onclick="verTotalPendientes()">PENDIENTES</button>
         <button id="btn-ultimas-salidas" onclick="verUltimasSalidas()">ÚLTIMAS 5 SALIDAS</button>
         <button id="btn-reservas" onclick="abrirReservas()">RESERVAS</button>
+        <button id="btn-panel" class="solo-admin" onclick="abrirPanel()">PANEL ADMIN</button>
 
         <!-- Toggle modo automático (booth) -->
         <label class="controles-extra" for="toggle-booth">
@@ -615,6 +633,18 @@
         <div id="scanner-cam"></div>
         <p id="scanner-err" style="color:#FF8A80;text-align:center;margin-top:10px;"></p>
         <p style="color:#B0BEC5;text-align:center;font-size:0.9rem;margin-top:8px;">Apunta la cámara al código QR de la reserva.</p>
+    </div>
+
+    <!-- Panel Admin (Fase 2) — solo rol administrador -->
+    <div id="panel-modal" class="rmodal">
+        <div class="rmodal-head">
+            <span>PANEL ADMIN</span>
+            <div style="display:flex;gap:8px;">
+                <button class="rclose" onclick="cargarPanel()" title="Actualizar">⟳</button>
+                <button class="rclose" onclick="cerrarPanel()">✕</button>
+            </div>
+        </div>
+        <div id="panel-contenido"></div>
     </div>
 
     <div id="registro-container" style="display:none;">
@@ -1072,6 +1102,95 @@
             document.getElementById("inputPatente").value = p;
             window.scrollTo({ top: 0, behavior: 'smooth' });
             verificarPatente();
+        }
+
+        // ─── Panel Admin (Fase 2) — solo rol administrador ───
+        // Lee 'activos' (ocupación en vivo) e 'ingresos' (log de atribución). Todo
+        // OPERATIVO: cero información financiera. Los operadores no lo ven (botón oculto
+        // con .solo-admin y la regla de Firestore solo deja leer 'ingresos' al admin).
+        function abrirPanel() {
+            document.getElementById('panel-modal').classList.add('activo');
+            cargarPanel();
+        }
+        function cerrarPanel() {
+            document.getElementById('panel-modal').classList.remove('activo');
+        }
+        function _escPanel(s) {
+            return (s || "").replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+        }
+        async function cargarPanel() {
+            const cont = document.getElementById('panel-contenido');
+            cont.innerHTML = "<p style='color:#8FB7D9;text-align:center;margin-top:30px;'>Cargando panel…</p>";
+            const hoy = new Date().toLocaleDateString('es-CL');
+            try {
+                const [ocupSnap, ingSnap] = await Promise.all([
+                    db.collection("activos")
+                      .where("tipo", "==", "Ticket por Minuto")
+                      .where("status", "==", "Activo").get(),
+                    db.collection("ingresos").where("fecha", "==", hoy).get(),
+                ]);
+                const enPatio = ocupSnap.size;
+                const ingresos = ingSnap.docs.map(d => d.data());
+                const totalHoy = ingresos.length;
+                const porOperador = {}, porHora = {};
+                ingresos.forEach(x => {
+                    const op = x.operador || "—";
+                    porOperador[op] = (porOperador[op] || 0) + 1;
+                    const raw = (x.hora || "").trim().split(":")[0];
+                    if (raw) { const h = raw.padStart(2, "0"); porHora[h] = (porHora[h] || 0) + 1; }
+                });
+                const ranking = Object.entries(porOperador).sort((a, b) => b[1] - a[1]);
+                const maxHora = Math.max(1, ...Object.values(porHora));
+
+                let html = "";
+                html += `
+                    <div class="pnl-card">
+                        <div class="pnl-label">EN PATIO AHORA</div>
+                        <div class="pnl-big">${enPatio}</div>
+                        <div class="pnl-sub">autos por minuto sin pagar</div>
+                    </div>`;
+                html += `<div class="pnl-card">
+                    <div class="pnl-label">INGRESOS DE HOY</div>
+                    <div class="pnl-big">${totalHoy}</div>
+                    <div class="pnl-sub">patentes registradas hoy</div>`;
+                if (ranking.length) {
+                    html += `<div class="pnl-h">Por operador</div>`;
+                    const maxOp = ranking[0][1];
+                    ranking.forEach(([op, n]) => {
+                        const pct = Math.round(n / maxOp * 100);
+                        html += `<div class="pnl-row">
+                            <span class="pnl-row-name">${_escPanel(op)}</span>
+                            <div class="pnl-bar-wrap"><div class="pnl-bar" style="width:${pct}%"></div></div>
+                            <span class="pnl-row-num">${n}</span>
+                        </div>`;
+                    });
+                } else {
+                    html += `<p class="pnl-empty">Sin ingresos registrados hoy todavía.</p>`;
+                }
+                html += `</div>`;
+                html += `<div class="pnl-card">
+                    <div class="pnl-label">HORAS PUNTA (HOY)</div>`;
+                const horas = Object.keys(porHora).sort();
+                if (horas.length) {
+                    horas.forEach(h => {
+                        const n = porHora[h];
+                        const pct = Math.round(n / maxHora * 100);
+                        html += `<div class="pnl-row">
+                            <span class="pnl-row-name">${h}:00</span>
+                            <div class="pnl-bar-wrap"><div class="pnl-bar pnl-bar-alt" style="width:${pct}%"></div></div>
+                            <span class="pnl-row-num">${n}</span>
+                        </div>`;
+                    });
+                } else {
+                    html += `<p class="pnl-empty">Sin datos de horas todavía.</p>`;
+                }
+                html += `</div>`;
+                html += `<p class="pnl-foot">Datos operativos en tiempo real · ${hoy}</p>`;
+                cont.innerHTML = html;
+            } catch (e) {
+                console.error("Error cargando panel:", e);
+                cont.innerHTML = "<p style='color:#FF8A80;text-align:center;margin-top:30px;'>No se pudo cargar el panel. Revisa tu conexión.</p>";
+            }
         }
 
         // ─── Atribución de ingresos (Fase 1) ───
