@@ -260,6 +260,9 @@
         .pase-print { width: auto; padding: 8px 12px; border-radius: 10px; background: rgba(255,255,255,.08); color: #fff; font-size: 1.1rem; box-shadow: none; flex: none; }
         .pases-hint { color: #7fa0bd; font-size: .75rem; text-align: center; margin-top: 12px; line-height: 1.5; }
         .pases-hint a { color: #8FB7D9; }
+        /* ─── Registrar jornada (Fase 4) ─── */
+        #btn-jornada { background: rgba(255,255,255,.06); color: #8FB7D9; border: 1.5px solid rgba(143,183,217,.35); padding: 12px; font-size: 1.05rem; letter-spacing: .5px; box-shadow: none; }
+        #btn-jornada.en-turno { background: linear-gradient(135deg, #00C853, #00913B); color: #fff; border-color: transparent; }
         .btn-escanear { width: 100%; border: none; border-radius: 16px; background: linear-gradient(135deg,#2196F3,#1565C0); color: #fff; padding: 18px; font-size: 1.35rem; font-weight: 800; letter-spacing: 1px; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
         .res-card { background: #0D3B5C; border-radius: 14px; padding: 12px 16px; margin-bottom: 10px; border-left: 5px solid #00C853; }
         .res-pat { color: #8FB7D9; font-size: 1.3rem; font-weight: 800; letter-spacing: 2px; }
@@ -612,6 +615,11 @@
         </span>
     </div>
 
+    <!-- Jornada (todos los usuarios) -->
+    <div style="margin-bottom:14px;">
+        <button id="btn-jornada" onclick="toggleJornada()">▶ Iniciar jornada</button>
+    </div>
+
     <!-- Acciones principales -->
     <div style="margin-bottom:20px;">
         <div class="autocomplete-container" style="margin-bottom:20px;">
@@ -748,10 +756,12 @@
                 usuarioActual = user.displayName || (user.email || "").split("@")[0];
                 if (login) login.style.display = "none";
                 if (!_appIniciada) { _appIniciada = true; iniciarListenerPendientes(); }
+                refrescarJornada();
             } else {
                 rolActual = null;
                 uidActual = null;
                 usuarioActual = null;
+                jornadaActual = null; _pintarBotonJornada();
                 document.body.classList.remove("es-admin");
                 if (login) { login.style.display = "flex"; }
             }
@@ -1245,6 +1255,14 @@
                     .where("status", "==", "Activo").get();
                 const enPatio = ocupSnap.size;
 
+                let jorns = [], jornOk = false;
+                try {
+                    const js = await db.collection("jornadas")
+                        .where("fecha", "==", now.toLocaleDateString('es-CL')).get();
+                    jorns = js.docs.map(d => d.data());
+                    jornOk = true;
+                } catch (e) { console.warn("Jornadas no disponibles:", e); }
+
                 let ingSnap, etiqueta, breakdownLabel, groupByDay, periodoTxt;
                 if (panelPeriodo === 'mes') {
                     const ini = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -1326,12 +1344,110 @@
                     html += `<p class="pnl-empty">Sin datos todavía.</p>`;
                 }
                 html += `</div>`;
+                if (jornOk) {
+                    jorns.sort((a, b) => ((a.inicio && a.inicio.seconds) || 0) - ((b.inicio && b.inicio.seconds) || 0));
+                    html += `<div class="pnl-card"><div class="pnl-label">JORNADAS DE HOY</div>`;
+                    if (jorns.length) {
+                        jorns.forEach(j => {
+                            const ini = (j.inicio && j.inicio.toDate) ? j.inicio.toDate() : null;
+                            const fin = (j.fin && j.fin.toDate) ? j.fin.toDate() : null;
+                            const iniTxt = ini ? _hm(ini) : '—';
+                            const finTxt = fin ? _hm(fin) : 'en turno';
+                            const cls = fin ? "" : " style='color:#66BB6A;font-weight:700'";
+                            const ms = ini ? ((fin || new Date()).getTime() - ini.getTime()) : 0;
+                            html += `<div class="pnl-line">
+                                <span class="l">${_escPanel(j.operador || '—')}</span>
+                                <span class="r">${iniTxt}–<span${cls}>${finTxt}</span> · ${_fmtDur(ms)}</span>
+                            </div>`;
+                        });
+                    } else {
+                        html += `<p class="pnl-empty">Nadie ha registrado jornada hoy.</p>`;
+                    }
+                    html += `</div>`;
+                }
                 html += `<p class="pnl-foot">Datos operativos · ${periodoTxt}</p>`;
                 cont.innerHTML = html;
             } catch (e) {
                 console.error("Error cargando panel:", e);
                 cont.innerHTML = "<p style='color:#FF8A80;text-align:center;margin-top:30px;'>No se pudo cargar el panel. Revisa tu conexión.</p>";
             }
+        }
+
+        // ─── Registrar jornada (Fase 4) ───
+        // Cada usuario marca inicio/fin de turno (colección 'jornadas'). Alimenta la
+        // tarjeta "Jornadas de hoy" del Panel Admin (horas trabajadas por operador).
+        let jornadaActual = null;
+        let jornadaTimer = null;
+        function _hm(d) { return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); }
+        function _fmtDur(ms) { const min = Math.max(0, Math.floor(ms / 60000)); const h = Math.floor(min / 60), m = min % 60; return h + "h " + String(m).padStart(2, "0") + "m"; }
+        function toggleJornada() { if (jornadaActual) terminarJornada(); else iniciarJornada(); }
+        function _pintarBotonJornada() {
+            const btn = document.getElementById('btn-jornada');
+            if (!btn) return;
+            if (jornadaTimer) { clearInterval(jornadaTimer); jornadaTimer = null; }
+            if (jornadaActual && jornadaActual.inicio && jornadaActual.inicio.toDate) {
+                btn.classList.add('en-turno');
+                const tick = () => {
+                    const ms = Date.now() - jornadaActual.inicio.toDate().getTime();
+                    btn.textContent = "■ Terminar jornada · " + _fmtDur(ms);
+                };
+                tick();
+                jornadaTimer = setInterval(tick, 30000);
+            } else {
+                btn.classList.remove('en-turno');
+                btn.textContent = "▶ Iniciar jornada";
+            }
+        }
+        async function refrescarJornada() {
+            if (!uidActual) { jornadaActual = null; _pintarBotonJornada(); return; }
+            try {
+                const snap = await db.collection("jornadas")
+                    .where("operador_uid", "==", uidActual)
+                    .where("fin", "==", null).get();
+                let abierta = null;
+                snap.forEach(d => {
+                    const data = d.data();
+                    if (!abierta || ((data.inicio && data.inicio.seconds) || 0) > ((abierta.inicio && abierta.inicio.seconds) || 0)) {
+                        abierta = Object.assign({ id: d.id }, data);
+                    }
+                });
+                jornadaActual = abierta;
+            } catch (e) { console.warn("No se pudo leer la jornada:", e); jornadaActual = null; }
+            _pintarBotonJornada();
+        }
+        async function iniciarJornada() {
+            if (!uidActual) return;
+            const ahora = new Date();
+            const btn = document.getElementById('btn-jornada'); if (btn) btn.disabled = true;
+            try {
+                const ref = await db.collection("jornadas").add({
+                    operador_uid: uidActual,
+                    operador: usuarioActual || "",
+                    inicio: firebase.firestore.FieldValue.serverTimestamp(),
+                    fin: null,
+                    fecha: ahora.toLocaleDateString('es-CL'),
+                });
+                jornadaActual = { id: ref.id, inicio: { toDate: () => ahora } };
+                _pintarBotonJornada();
+            } catch (e) {
+                console.error("Error iniciando jornada:", e);
+                alert("No se pudo iniciar la jornada. Revisa tu conexión.");
+            } finally { if (btn) btn.disabled = false; }
+        }
+        async function terminarJornada() {
+            if (!jornadaActual) return;
+            if (!confirm("¿Terminar tu jornada?")) return;
+            const btn = document.getElementById('btn-jornada'); if (btn) btn.disabled = true;
+            try {
+                await db.collection("jornadas").doc(jornadaActual.id).update({
+                    fin: firebase.firestore.FieldValue.serverTimestamp(),
+                });
+                jornadaActual = null;
+                _pintarBotonJornada();
+            } catch (e) {
+                console.error("Error terminando jornada:", e);
+                alert("No se pudo terminar la jornada. Revisa tu conexión.");
+            } finally { if (btn) btn.disabled = false; }
         }
 
         // ─── Reimprimir Pases Diarios (Fase 3) — solo admin ───
