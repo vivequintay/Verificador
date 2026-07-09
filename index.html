@@ -1458,9 +1458,11 @@
         // Lee los Pase Diario de 'activos' (ya pagados en la caja), los lista y reimprime
         // por Bluetooth vía RawBT (rawbt:data:image/png;base64,...). Cero plata: NO muestra
         // ni imprime monto ni método de pago (solo estado PAGADO/PENDIENTE). La caja manda.
-        // Compensación de escala de la impresora portátil (imprime ~15-20% más chico).
-        // Sube este número si el ticket sale corto; bájalo si sale muy grande.
+        // Resolución del bitmap del ticket. El TAMAÑO físico lo ajusta RawBT (reescala al
+        // ancho del papel); esto solo define la nitidez de la fuente.
         const ESC_IMPRESION = 1.7;
+        // Pausa entre pases al imprimir varios, para alcanzar a cortar cada ticket.
+        const PAUSA_CORTE_MS = 2500;
         let _pasesCache = [];
         let logoOk = false;
         const LOGO_IMG = new Image();
@@ -1524,10 +1526,36 @@
             const p = _pasesCache[i];
             if (p) _imprimirCanvas(_construirCanvasPases([p]));
         }
-        function imprimirSeleccionadas() {
+        function _esperar(ms) { return new Promise(r => setTimeout(r, ms)); }
+        function _esperarVisible() {
+            // Resuelve cuando la PWA vuelve a estar en primer plano (RawBT regresó tras
+            // imprimir). Evita disparar el siguiente trabajo mientras RawBT está encima.
+            return new Promise(resolve => {
+                if (document.visibilityState === 'visible') return resolve();
+                const on = () => {
+                    if (document.visibilityState === 'visible') {
+                        document.removeEventListener('visibilitychange', on);
+                        resolve();
+                    }
+                };
+                document.addEventListener('visibilitychange', on);
+            });
+        }
+        async function imprimirSeleccionadas() {
             const sel = _pasesSeleccionados();
             if (!sel.length) { alert("Marca al menos un pase para imprimir."); return; }
-            _imprimirCanvas(_construirCanvasPases(sel));
+            const btn = document.getElementById('btn-imprimir-sel');
+            if (btn) btn.disabled = true;
+            for (let i = 0; i < sel.length; i++) {
+                if (btn) btn.textContent = `Imprimiendo ${i + 1} de ${sel.length}…`;
+                _imprimirCanvas(_construirCanvasPases([sel[i]]));
+                if (i < sel.length - 1) {
+                    await _esperar(PAUSA_CORTE_MS);   // tiempo para cortar el ticket
+                    await _esperarVisible();          // asegura que RawBT ya volvió a la app
+                }
+            }
+            if (btn) btn.disabled = false;
+            _actualizarContadorPases();
         }
 
         // ── Render del ticket en canvas (384px = estándar 58mm) ──
