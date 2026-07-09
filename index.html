@@ -1462,8 +1462,6 @@
         // ancho del papel); esto solo define la nitidez de la fuente.
         const ESC_IMPRESION = 1.7;
         let _pasesCache = [];
-        let _cola = [];        // cola de pases al imprimir varios (avanza con cada toque)
-        let _colaIdx = 0;
         let logoOk = false;
         const LOGO_IMG = new Image();
         LOGO_IMG.onload = () => { logoOk = true; };
@@ -1527,26 +1525,9 @@
             if (p) _imprimirCanvas(_construirCanvasPases([p]));
         }
         function imprimirSeleccionadas() {
-            // Cada impresión debe nacer de un TOQUE del usuario: los navegadores bloquean
-            // lanzar RawBT solo (sin gesto). Por eso, al imprimir varias, sale la primera
-            // con este toque y luego el mismo botón pasa a "siguiente" para cada una — lo
-            // que además te da todo el tiempo que necesites para cortar cada ticket.
-            if (_colaIdx < _cola.length) { _imprimirSiguienteDeCola(); return; }
             const sel = _pasesSeleccionados();
             if (!sel.length) { alert("Marca al menos un pase para imprimir."); return; }
-            _cola = sel; _colaIdx = 0;
-            _imprimirSiguienteDeCola();
-        }
-        function _imprimirSiguienteDeCola() {
-            const btn = document.getElementById('btn-imprimir-sel');
-            _imprimirCanvas(_construirCanvasPases([_cola[_colaIdx]]));
-            _colaIdx++;
-            if (_colaIdx < _cola.length) {
-                if (btn) btn.textContent = `Corta y toca: imprimir ${_colaIdx + 1} de ${_cola.length}`;
-            } else {
-                _cola = []; _colaIdx = 0;
-                _actualizarContadorPases();
-            }
+            _imprimirCanvas(_construirCanvasPases(sel));   // todas en una tira
         }
 
         // ── Render del ticket en canvas (384px = estándar 58mm) ──
@@ -1582,23 +1563,30 @@
             }
             return y;
         }
+        function _zonaCorte(ctx, W, y) {
+            // Banda de corte al final de cada ticket: 3 líneas punteadas con harto aire
+            // arriba y abajo, para tener dónde cortar cómodo.
+            y += 26;
+            for (let k = 0; k < 3; k++) { _separador(ctx, W, y); y += 13; }
+            y += 26;
+            return y;
+        }
         function _construirCanvasPases(lista) {
             const K = ESC_IMPRESION;            // agranda el bitmap para compensar la portátil
             const W = 384;                      // ancho de diseño (58mm), en coords lógicas
-            const estim = logoOk ? 540 : 420;
-            const GAP = 36;
-            const hLog = lista.length * (estim + GAP) + 60;
+            const estim = logoOk ? 660 : 540;   // alto estimado por ticket (incluye banda de corte)
+            const hLog = lista.length * estim + 60;
             const big = document.createElement('canvas');
             big.width = Math.round(W * K); big.height = Math.round(hLog * K);
             const ctx = big.getContext('2d');
             ctx.scale(K, K);                    // se dibuja en coords lógicas, sale K× más grande
             ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, hLog);
             let y = 8;
-            lista.forEach((p, i) => {
+            lista.forEach((p) => {
                 y = _dibujarPase(ctx, W, y, p);
-                if (i < lista.length - 1) { y += 18; _separador(ctx, W, y); y += 18; }
+                y = _zonaCorte(ctx, W, y);      // banda de corte tras cada ticket
             });
-            y += 24;
+            y += 12;
             const out = document.createElement('canvas');
             out.width = big.width; out.height = Math.max(1, Math.ceil(y * K));
             const octx = out.getContext('2d');
