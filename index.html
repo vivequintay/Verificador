@@ -258,8 +258,6 @@
         .pg-si { color: #66BB6A; font-weight: 800; }
         .pg-no { color: #FFB74D; font-weight: 800; }
         .pase-print { width: auto; padding: 8px 12px; border-radius: 10px; background: rgba(255,255,255,.08); color: #fff; font-size: 1.1rem; box-shadow: none; flex: none; }
-        .pases-hint { color: #7fa0bd; font-size: .75rem; text-align: center; margin-top: 12px; line-height: 1.5; }
-        .pases-hint a { color: #8FB7D9; }
         /* ─── Registrar jornada (Fase 4) ─── */
         #btn-jornada { background: rgba(255,255,255,.06); color: #8FB7D9; border: 1.5px solid rgba(143,183,217,.35); padding: 12px; font-size: 1.05rem; letter-spacing: .5px; box-shadow: none; }
         #btn-jornada.en-turno { background: linear-gradient(135deg, #00C853, #00913B); color: #fff; border-color: transparent; }
@@ -711,9 +709,6 @@
             <button id="btn-imprimir-sel" onclick="imprimirSeleccionadas()">Imprimir seleccionadas</button>
         </div>
         <div id="pases-lista"></div>
-        <p class="pases-hint">Se imprime por Bluetooth vía <b>RawBT</b>. Si no imprime, instala
-            <a href="https://play.google.com/store/apps/details?id=ru.a402d.rawbtprinter" target="_blank" rel="noopener">RawBT</a>
-            y parea tu impresora una vez.</p>
     </div>
 
     <div id="registro-container" style="display:none;">
@@ -1463,6 +1458,9 @@
         // Lee los Pase Diario de 'activos' (ya pagados en la caja), los lista y reimprime
         // por Bluetooth vía RawBT (rawbt:data:image/png;base64,...). Cero plata: NO muestra
         // ni imprime monto ni método de pago (solo estado PAGADO/PENDIENTE). La caja manda.
+        // Compensación de escala de la impresora portátil (imprime ~15-20% más chico).
+        // Sube este número si el ticket sale corto; bájalo si sale muy grande.
+        const ESC_IMPRESION = 1.2;
         let _pasesCache = [];
         let logoOk = false;
         const LOGO_IMG = new Image();
@@ -1566,13 +1564,16 @@
             return y;
         }
         function _construirCanvasPases(lista) {
-            const W = 384;
+            const K = ESC_IMPRESION;            // agranda el bitmap para compensar la portátil
+            const W = 384;                      // ancho de diseño (58mm), en coords lógicas
             const estim = logoOk ? 540 : 420;
             const GAP = 36;
+            const hLog = lista.length * (estim + GAP) + 60;
             const big = document.createElement('canvas');
-            big.width = W; big.height = lista.length * (estim + GAP) + 60;
+            big.width = Math.round(W * K); big.height = Math.round(hLog * K);
             const ctx = big.getContext('2d');
-            ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, big.width, big.height);
+            ctx.scale(K, K);                    // se dibuja en coords lógicas, sale K× más grande
+            ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, hLog);
             let y = 8;
             lista.forEach((p, i) => {
                 y = _dibujarPase(ctx, W, y, p);
@@ -1580,9 +1581,9 @@
             });
             y += 24;
             const out = document.createElement('canvas');
-            out.width = W; out.height = Math.max(1, Math.ceil(y));
+            out.width = big.width; out.height = Math.max(1, Math.ceil(y * K));
             const octx = out.getContext('2d');
-            octx.fillStyle = "#fff"; octx.fillRect(0, 0, W, out.height);
+            octx.fillStyle = "#fff"; octx.fillRect(0, 0, out.width, out.height);
             octx.drawImage(big, 0, 0);
             return out;
         }
@@ -1596,7 +1597,7 @@
                 a.remove();
             } catch (e) {
                 console.error("Error al enviar a RawBT:", e);
-                alert("No se pudo enviar a la impresora. ¿Está instalado RawBT?");
+                alert("No se pudo enviar a la impresora.");
             }
         }
 
