@@ -1461,9 +1461,9 @@
         // Resolución del bitmap del ticket. El TAMAÑO físico lo ajusta RawBT (reescala al
         // ancho del papel); esto solo define la nitidez de la fuente.
         const ESC_IMPRESION = 1.7;
-        // Pausa entre pases al imprimir varios, para alcanzar a cortar cada ticket.
-        const PAUSA_CORTE_MS = 2500;
         let _pasesCache = [];
+        let _cola = [];        // cola de pases al imprimir varios (avanza con cada toque)
+        let _colaIdx = 0;
         let logoOk = false;
         const LOGO_IMG = new Image();
         LOGO_IMG.onload = () => { logoOk = true; };
@@ -1526,36 +1526,27 @@
             const p = _pasesCache[i];
             if (p) _imprimirCanvas(_construirCanvasPases([p]));
         }
-        function _esperar(ms) { return new Promise(r => setTimeout(r, ms)); }
-        function _esperarVisible() {
-            // Resuelve cuando la PWA vuelve a estar en primer plano (RawBT regresó tras
-            // imprimir). Evita disparar el siguiente trabajo mientras RawBT está encima.
-            return new Promise(resolve => {
-                if (document.visibilityState === 'visible') return resolve();
-                const on = () => {
-                    if (document.visibilityState === 'visible') {
-                        document.removeEventListener('visibilitychange', on);
-                        resolve();
-                    }
-                };
-                document.addEventListener('visibilitychange', on);
-            });
-        }
-        async function imprimirSeleccionadas() {
+        function imprimirSeleccionadas() {
+            // Cada impresión debe nacer de un TOQUE del usuario: los navegadores bloquean
+            // lanzar RawBT solo (sin gesto). Por eso, al imprimir varias, sale la primera
+            // con este toque y luego el mismo botón pasa a "siguiente" para cada una — lo
+            // que además te da todo el tiempo que necesites para cortar cada ticket.
+            if (_colaIdx < _cola.length) { _imprimirSiguienteDeCola(); return; }
             const sel = _pasesSeleccionados();
             if (!sel.length) { alert("Marca al menos un pase para imprimir."); return; }
+            _cola = sel; _colaIdx = 0;
+            _imprimirSiguienteDeCola();
+        }
+        function _imprimirSiguienteDeCola() {
             const btn = document.getElementById('btn-imprimir-sel');
-            if (btn) btn.disabled = true;
-            for (let i = 0; i < sel.length; i++) {
-                if (btn) btn.textContent = `Imprimiendo ${i + 1} de ${sel.length}…`;
-                _imprimirCanvas(_construirCanvasPases([sel[i]]));
-                if (i < sel.length - 1) {
-                    await _esperar(PAUSA_CORTE_MS);   // tiempo para cortar el ticket
-                    await _esperarVisible();          // asegura que RawBT ya volvió a la app
-                }
+            _imprimirCanvas(_construirCanvasPases([_cola[_colaIdx]]));
+            _colaIdx++;
+            if (_colaIdx < _cola.length) {
+                if (btn) btn.textContent = `Corta y toca: imprimir ${_colaIdx + 1} de ${_cola.length}`;
+            } else {
+                _cola = []; _colaIdx = 0;
+                _actualizarContadorPases();
             }
-            if (btn) btn.disabled = false;
-            _actualizarContadorPases();
         }
 
         // ── Render del ticket en canvas (384px = estándar 58mm) ──
