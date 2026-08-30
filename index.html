@@ -854,6 +854,37 @@
             if ("vibrate" in navigator) navigator.vibrate(VIBRACIONES[tipo] || [100]);
         }
 
+        // Hoy en el MISMO formato que escribe la caja: DD-MM-AAAA. Comparar textos evita
+        // pasar por Date, que interpretaría "05-08-2026" como 5 de agosto o como 8 de mayo
+        // según el teléfono.
+        function fechaDeHoy() {
+            const d = new Date();
+            return String(d.getDate()).padStart(2, "0") + "-" +
+                   String(d.getMonth() + 1).padStart(2, "0") + "-" + d.getFullYear();
+        }
+
+        // ─── ¿Este pase diario está pagado? ───
+        // ESTO ERA EL BUG GRAVE: antes no se preguntaba. Todo pase diario se pintaba verde
+        // "PAGADO" por el solo hecho de ser pase diario, así que un pase INGRESADO PENDIENTE
+        // —el auto entró y todavía no paga— se veía igual que uno pagado y el auto se iba.
+        //
+        // El dato siempre estuvo en la nube; nadie lo miraba. La caja escribe:
+        //   ingreso normal  → metodo_pago 'Pendiente' · pago 'NO'  · status 'Activo'
+        //   pase cobrado    → metodo_pago <medio>     · pago 'SI'  · status 'PAGADO'
+        //   reserva web     → metodo_pago 'Reserva Web' · pago 'SI' · status 'PAGADO'
+        //
+        // ANTE LA DUDA, PENDIENTE. Si a un documento le faltan los tres campos no se puede
+        // saber, y de los dos errores posibles éste es el barato: un pendiente falso se
+        // aclara preguntando en caja; un pagado falso es un auto que se va sin pagar.
+        function paseEstaPagado(data) {
+            if (!data) return false;
+            const pago   = String(data.pago   || "").trim().toUpperCase();
+            const status = String(data.status || "").trim().toUpperCase();
+            const metodo = String(data.metodo_pago || "").trim().toUpperCase();
+            if (pago === "SI" || status === "PAGADO") return true;
+            return metodo !== "" && metodo !== "PENDIENTE";
+        }
+
         // ─── Modo booth (auto-clear) ───
         let boothActivo = localStorage.getItem('booth') === '1';
         let boothTimer  = null;
@@ -1076,7 +1107,7 @@
                                 <h2>TICKET MINUTO</h2>
                                 <span class="result-chip">Ingreso: ${data.hora || '--:--'}</span>
                             </div>`;
-                    } else if (tipoDb === "pase diario") {
+                    } else if (tipoDb === "pase diario" && paseEstaPagado(data)) {
                         vibrar("pagado");
                         lanzarFlash("flash-pagado");
                         display.innerHTML = `
@@ -1084,6 +1115,19 @@
                                 <h1>PAGADO</h1>
                                 <h2>PASE DIARIO</h2>
                                 <span class="result-chip">Ingreso: ${data.hora || '--:--'}</span>
+                            </div>`;
+                    } else if (tipoDb === "pase diario") {
+                        // Pase diario SIN pagar: el auto entró y la plata no ha entrado.
+                        // Mismo naranja y misma vibración larga que el ticket pendiente,
+                        // para que el operador no tenga que aprender un color nuevo.
+                        vibrar("pendiente");
+                        lanzarFlash("flash-pendiente");
+                        display.innerHTML = `
+                            <div class="result-card" style="background:linear-gradient(135deg,#FF9800,#F57C00);color:#1a1a1a;">
+                                <h1>PENDIENTE</h1>
+                                <h2>PASE DIARIO</h2>
+                                <span class="result-chip">Ingreso: ${data.hora || '--:--'}</span>
+                                <span class="result-chip">COBRAR EN CAJA</span>
                             </div>`;
                     } else {
                         display.innerHTML = `
@@ -1143,11 +1187,20 @@
                     .where("tipo",   "==", "Ticket por Minuto")
                     .where("status", "==", "Finalizado")
                     .get();
-                if (snapshot.empty) { listaDiv.innerHTML = "<p style='color:#FFB300;margin-top:20px;'>NO HAY SALIDAS REGISTRADAS HOY</p>"; return; }
+                // SOLO LAS DE HOY. Antes no se filtraba por fecha, y encima se ordenaba por
+                // `hora_pago`, que es la hora SIN el día ("23:50"): un auto de ayer a las
+                // 23:50 le ganaba a uno de hoy a las 09:00. Los de días anteriores llegan
+                // aquí cuando la jornada quedó sin cerrar, que es justo cuando más confunde.
+                //
+                // `fecha_salida` es la fecha en que el auto SE FUE y es la correcta; los
+                // documentos viejos no la traen, así que se cae a `fecha` (la de entrada).
+                // La diferencia sólo aparece en autos que amanecen estacionados.
                 const docs = snapshot.docs
                     .map(doc => ({ id: doc.id, data: doc.data() }))
+                    .filter(d => (d.data.fecha_salida || d.data.fecha || "") === fechaDeHoy())
                     .sort((a, b) => (b.data.hora_pago || "").localeCompare(a.data.hora_pago || ""))
                     .slice(0, 5);
+                if (!docs.length) { listaDiv.innerHTML = "<p style='color:#FFB300;margin-top:20px;'>NO HAY SALIDAS REGISTRADAS HOY</p>"; return; }
                 let html = `<h3 style="color:#00C853;margin-bottom:15px;">ÚLTIMAS ${docs.length} SALIDAS</h3>`;
                 docs.forEach(item => {
                     const data = item.data;
