@@ -239,6 +239,52 @@
             font-size: 2.4rem;
             margin-top: 10px;
         }
+        /* ─── LA BANDEJA DE AVISOS ───
+           Aca aparecen los resultados y las listas ("NO HAY PENDIENTES", las ultimas
+           salidas, los pendientes). En reposo estaba vacia y se leia como un hueco: la
+           pantalla parecia cortada a la mitad.
+
+           DOS COSAS SE ARREGLAN DE UNA. La primera es que el hueco pase a leerse como un
+           sitio a proposito. La segunda importa mas y no se ve: al tener alto minimo, el
+           resto de la pantalla YA NO SALTA cuando aparece un mensaje. Antes cada aviso
+           empujaba el boton de cerrar sesion hacia abajo de golpe.
+
+           SIN TEXTO cuando esta vacia, como corresponde: tres puntos discretos alcanzan
+           para decir "aca salen cosas" y no hay que traducirlos ni leerlos.
+
+           El `:has()` es lo que permite distinguir vacia de llena sin una linea de
+           JavaScript, o sea sin riesgo de que el estilo y el contenido se desincronicen.
+           Donde no exista, no se dibuja nada y queda como estaba: se degrada solo. */
+        #zona-avisos { min-height: 132px; margin-top: 14px; }
+
+        #zona-avisos:has(#display-resultado:empty):has(#lista-pendientes:empty) {
+            border: 1.5px dashed rgba(143,183,217,0.18);
+            border-radius: 16px;
+            background: rgba(255,255,255,0.02);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+        }
+        #zona-avisos:has(#display-resultado:empty):has(#lista-pendientes:empty)::before,
+        #zona-avisos:has(#display-resultado:empty):has(#lista-pendientes:empty)::after {
+            content: "";
+            width: 6px; height: 6px; border-radius: 50%;
+            background: rgba(143,183,217,0.22);
+        }
+        #zona-avisos .punto-medio {
+            width: 6px; height: 6px; border-radius: 50%;
+            background: rgba(143,183,217,0.22);
+            display: none;
+        }
+        #zona-avisos:has(#display-resultado:empty):has(#lista-pendientes:empty) .punto-medio {
+            display: block;
+        }
+        body.modo-sol #zona-avisos:has(#display-resultado:empty):has(#lista-pendientes:empty) {
+            border-color: rgba(10,47,79,0.14);
+            background: rgba(10,47,79,0.02);
+        }
+
         /* ─── PANTALLA DE SALIDA ───
            Sigue el patron `.rmodal` de la casa (mismo fondo navy, misma cabecera, misma
            equis). Lo unico propio es la caja donde ira la camara y el par de acciones. */
@@ -735,8 +781,11 @@
     </div>
 
     <div style="margin:30px 0;"></div>
-    <div id="display-resultado"></div>
-    <div id="lista-pendientes"></div>
+    <div id="zona-avisos">
+        <div id="display-resultado"></div>
+        <span class="punto-medio"></span>
+        <div id="lista-pendientes"></div>
+    </div>
 
     <!-- Modal RESERVAS de hoy -->
     <div id="reservas-modal" class="rmodal">
