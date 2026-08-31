@@ -44,19 +44,21 @@
         body.modo-sol .controles-extra               { color: rgba(10,47,79,0.5); }
         body.modo-sol .toggle-switch                 { background: rgba(10,47,79,0.18); }
         body.modo-sol #btn-sol                       { background: #FFD54F; color: #5D4037; border-color: #FFC107; }
+        body.modo-sol #btn-reservas                  { background: #d8eaf5; color: #0A2F4F; border-color: #b8d4e6; }
 
-        /* ─── Botón modo sol (fijo esquina) ─── */
-        #btn-sol {
+        /* ─── Botones de esquina (fijos, arriba a la derecha) ───
+           Molde compartido: el estilo estaba escrito dentro de #btn-sol y al aparecer el
+           segundo boton habria que haberlo copiado entero. Copiado significa que el dia
+           que uno cambie, el otro se queda atras y dejan de parecer hermanos. */
+        .btn-esquina {
             position: fixed;
             top: 14px;
-            right: 14px;
             width: 44px;
             height: 44px;
             border-radius: 50%;
             background: #0D3B5C;
             color: rgba(255,255,255,0.65);
             border: 1.5px solid rgba(255,255,255,0.15);
-            font-size: 1.25rem;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -66,7 +68,21 @@
             padding: 0;
             transition: background 0.2s, color 0.2s;
         }
-        #btn-sol:active { transform: scale(0.92); }
+        .btn-esquina:active { transform: scale(0.92); }
+
+        #btn-sol { right: 14px; font-size: 1.25rem; }
+
+        /* RESERVAS, relegado a la esquina. Nadie ha reservado nunca, asi que dejo de
+           ocupar una franja entera de una pantalla donde el alto es lo que escasea —
+           pero no se elimina, porque la temporada puede cambiar eso. Una R sola y
+           grande: con el circulo de 44px no cabe una palabra, y una letra unica se
+           reconoce mas rapido que un icono que hay que interpretar. */
+        #btn-reservas {
+            right: 66px;              /* 14 del borde + 44 del boton del sol + 8 de aire */
+            font-size: 1.55rem;
+            font-weight: 900;
+            line-height: 1;
+        }
 
         /* ─── Header ─── */
         .app-logo {
@@ -222,13 +238,6 @@
             padding: 20px;
             font-size: 2.4rem;
             margin-top: 10px;
-        }
-        #btn-reservas {
-            background: linear-gradient(135deg, #8FB7D9, #5E91BE);
-            color: #062436;
-            margin-top: 10px;
-            font-size: 1.4rem;
-            padding: 14px;
         }
         /* ─── PANTALLA DE SALIDA ───
            Sigue el patron `.rmodal` de la casa (mismo fondo navy, misma cabecera, misma
@@ -648,7 +657,8 @@
     </div>
 
     <!-- Botón modo sol -->
-    <button id="btn-sol" onclick="toggleModoSol()" title="Modo día / noche">☀</button>
+    <button id="btn-reservas" class="btn-esquina" onclick="abrirReservas()" title="Reservas de hoy">R</button>
+    <button id="btn-sol" class="btn-esquina" onclick="toggleModoSol()" title="Modo día / noche">☀</button>
 
     <!-- Flash overlays -->
     <div id="flash-pagado" class="overlay">
@@ -713,7 +723,6 @@
             <button id="btn-ultimas-salidas" onclick="verUltimasSalidas()">ÚLT. SALIDAS</button>
         </div>
         <button id="btn-salida" onclick="abrirSalida()">SALIDA</button>
-        <button id="btn-reservas" onclick="abrirReservas()">RESERVAS</button>
         <button id="btn-panel" class="solo-admin" onclick="abrirPanel()">PANEL ADMIN</button>
         <button id="btn-pases" class="solo-admin" onclick="abrirPases()">REIMPRIMIR PASES</button>
 
