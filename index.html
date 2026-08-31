@@ -298,6 +298,18 @@
             background: rgba(10,47,79,0.02);
         }
 
+        /* ─── AIRE ENTRE LOS BOTONES, SOLO SI SOBRA ALTO ───
+           En el A56 quedaban 152px muertos abajo y la botonera se veia apretada arriba;
+           en un telefono de 360 el contenido YA se pasa 123px. Un numero fijo arregla uno
+           y rompe el otro, asi que el aire extra se da por ALTO DE PANTALLA: donde sobra,
+           la botonera respira; donde falta, queda compacta como estaba. */
+        @media (min-height: 700px) {
+            #verificar-manual { margin-top: 42px; }
+            .fila-dos         { margin-top: 38px; }
+            #btn-salida       { margin-top: 38px; }
+            #zona-avisos      { margin-top: 40px; }
+        }
+
         /* ─── PANTALLA DE SALIDA ───
            Sigue el patron `.rmodal` de la casa (mismo fondo navy, misma cabecera, misma
            equis). Lo unico propio es la caja donde ira la camara y el par de acciones. */
@@ -709,7 +721,7 @@
             <button id="btn-sol" class="btn-esquina" onclick="toggleModoSol()"
                     title="Modo día / noche">&#9728;</button>
             <button id="btn-logout" class="btn-esquina" onclick="cerrarSesion()"
-                    title="Cerrar sesión"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42A6.92 6.92 0 0 1 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.26 1.07-4.27 2.73-5.55L6.31 5.03A8.932 8.932 0 0 0 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z"/></svg></button>
+                    title="Cerrar sesión"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg></button>
         </div>
         <h2 class="brand-title">VIVE QUINTAY</h2>
         <span class="brand-spa">SPA</span>
