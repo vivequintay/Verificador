@@ -23,11 +23,7 @@
             color: white;
             font-family: 'Inter', 'Segoe UI', sans-serif;
             margin: 0;
-            /* El fondo lleva MAS margen que los lados: "Cerrar sesión" esta FIJO abajo y
-               flota sobre la pagina, asi que sin este sitio reservado cualquier cosa que
-               llegue al final se le cruza por debajo. Es 10 del borde + el alto del boton
-               + aire. */
-            padding: 20px 20px 62px;
+            padding: 20px;
             text-align: center;
             overflow-x: hidden;
             transition: background-color 0.25s ease, color 0.25s ease;
@@ -45,8 +41,6 @@
         body.modo-sol .autocomplete-items div        { color: #0A2F4F; border-bottom-color: #b8d4e6; }
         body.modo-sol #registro-container            { background: #d8eaf5; }
         body.modo-sol #btn-limpiar                   { color: rgba(10,47,79,0.4); border-color: rgba(10,47,79,0.18); }
-        body.modo-sol .controles-extra               { color: rgba(10,47,79,0.5); }
-        body.modo-sol .toggle-switch                 { background: rgba(10,47,79,0.18); }
         body.modo-sol #btn-sol                       { background: #FFD54F; color: #5D4037; border-color: #FFC107; }
         body.modo-sol #btn-reservas                  { background: #d8eaf5; color: #0A2F4F; border-color: #b8d4e6; }
 
@@ -54,9 +48,18 @@
            Molde compartido: el estilo estaba escrito dentro de #btn-sol y al aparecer el
            segundo boton habria que haberlo copiado entero. Copiado significa que el dia
            que uno cambie, el otro se queda atras y dejan de parecer hermanos. */
+        /* ─── BARRA DE ARRIBA ───
+           El logo a la izquierda y los botones centrados EN LA PANTALLA, no en el espacio
+           que sobra: por eso el logo va absoluto y la fila va centrada. Si el logo formara
+           parte del reparto, los botones quedarian corridos a la derecha. */
+        .barra-top {
+            position: relative;
+            display: flex; align-items: center; justify-content: center;
+            gap: 7px; min-height: 44px; margin-bottom: 18px;
+        }
+        .barra-top .app-logo { position: absolute; left: 0; margin: 0; }
+
         .btn-esquina {
-            position: fixed;
-            top: 14px;
             width: 44px;
             height: 44px;
             border-radius: 50%;
@@ -73,8 +76,17 @@
             transition: background 0.2s, color 0.2s;
         }
         .btn-esquina:active { transform: scale(0.92); }
+        /* SVG y no un simbolo de texto: `⏻` es una letra de la fuente del telefono y
+           MUCHOS Android no la traen — donde falta sale un cuadrito. Un dibujo se ve
+           igual en todos, escala sin pixelarse y toma el color del boton con
+           `currentColor`, asi que el modo dia no necesita una regla aparte. */
+        .btn-esquina svg { width: 21px; height: 21px; fill: currentColor; display: block; }
 
-        #btn-sol { right: 14px; font-size: 1.25rem; }
+        /* El modo automatico se nota encendido: mismo boton, color de acento. */
+        #btn-booth.encendido { color: #8FB7D9; border-color: rgba(143,183,217,.45); }
+        body.modo-sol #btn-booth.encendido { color: #2C6E9B; border-color: rgba(44,110,155,.4); }
+
+        #btn-sol { font-size: 1.25rem; }
 
         /* RESERVAS, relegado a la esquina. Nadie ha reservado nunca, asi que dejo de
            ocupar una franja entera de una pantalla donde el alto es lo que escasea —
@@ -82,7 +94,6 @@
            grande: con el circulo de 44px no cabe una palabra, y una letra unica se
            reconoce mas rapido que un icono que hay que interpretar. */
         #btn-reservas {
-            right: 66px;              /* 14 del borde + 44 del boton del sol + 8 de aire */
             font-size: 1.55rem;
             font-weight: 900;
             line-height: 1;
@@ -90,11 +101,10 @@
 
         /* ─── Header ─── */
         .app-logo {
-            width: 62px;
-            height: 62px;
-            border-radius: 14px;
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
             display: block;
-            margin: 0 auto 12px auto;
         }
         .brand-title {
             margin: 0 0 4px 0;
@@ -403,43 +413,6 @@
         #scanner-cam { width: 100%; max-width: 340px; margin: 0 auto; border-radius: 14px; overflow: hidden; }
 
         /* ─── Toggle booth + controles extra ─── */
-        .controles-extra {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            margin-top: 14px;
-            font-size: 0.78rem;
-            color: rgba(255,255,255,0.42);
-            cursor: pointer;
-            user-select: none;
-        }
-        .toggle-label {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-        }
-        #toggle-booth { display: none; }
-        .toggle-switch {
-            position: relative;
-            width: 36px; height: 20px;
-            background: rgba(255,255,255,0.15);
-            border-radius: 10px;
-            transition: background 0.2s;
-            flex-shrink: 0;
-        }
-        .toggle-switch::after {
-            content: '';
-            position: absolute;
-            left: 3px; top: 3px;
-            width: 14px; height: 14px;
-            background: white;
-            border-radius: 50%;
-            transition: left 0.2s;
-        }
-        #toggle-booth:checked ~ .toggle-switch { background: #52D45A; }
-        #toggle-booth:checked ~ .toggle-switch::after { left: 19px; }
 
         /* ─── Countdown bar ─── */
         .booth-countdown {
@@ -675,13 +648,6 @@
         }
         #login-btn:disabled { opacity: .6; }
         #login-error { color: #FF8A80; min-height: 20px; font-size: .9rem; }
-        #btn-logout {
-            position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%);
-            background: transparent; border: 1px solid rgba(255,255,255,.2);
-            color: rgba(255,255,255,.5); padding: 6px 16px; border-radius: 20px;
-            font-size: .72rem; cursor: pointer; z-index: 100; font-family: inherit;
-        }
-        body.modo-sol #btn-logout { border-color: rgba(10,47,79,.2); color: rgba(10,47,79,.5); }
     </style>
     <div id="login-overlay">
         <img src="logo.png" class="login-logo" alt="Logo">
@@ -695,7 +661,6 @@
         <button id="login-btn" onclick="iniciarSesion()">ENTRAR</button>
         <div id="login-error"></div>
     </div>
-    <button id="btn-logout" onclick="cerrarSesion()">Cerrar sesión</button>
 
     <!-- Splash screen -->
     <div id="splash-screen">
@@ -706,8 +671,6 @@
     </div>
 
     <!-- Botón modo sol -->
-    <button id="btn-reservas" class="btn-esquina" onclick="abrirReservas()" title="Reservas de hoy">R</button>
-    <button id="btn-sol" class="btn-esquina" onclick="toggleModoSol()" title="Modo día / noche">☀</button>
 
     <!-- Flash overlays -->
     <div id="flash-pagado" class="overlay">
@@ -737,7 +700,17 @@
 
     <!-- Header -->
     <div style="margin-bottom:30px;">
-        <img src="logo.png" class="app-logo" alt="Logo">
+        <div class="barra-top">
+            <img src="logo.png" class="app-logo" alt="Logo">
+            <button id="btn-booth" class="btn-esquina" onclick="toggleBooth()"
+                    title="Modo automático: limpia la pantalla sola"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 1H9v2h6V1zm-4 13h2V8h-2v6zm8.03-6.61l1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42A8.962 8.962 0 0 0 12 4c-4.97 0-9 4.03-9 9s4.02 9 9 9a8.994 8.994 0 0 0 7.03-14.61zM12 20c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg></button>
+            <button id="btn-reservas" class="btn-esquina" onclick="abrirReservas()"
+                    title="Reservas de hoy">R</button>
+            <button id="btn-sol" class="btn-esquina" onclick="toggleModoSol()"
+                    title="Modo día / noche">&#9728;</button>
+            <button id="btn-logout" class="btn-esquina" onclick="cerrarSesion()"
+                    title="Cerrar sesión"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42A6.92 6.92 0 0 1 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.26 1.07-4.27 2.73-5.55L6.31 5.03A8.932 8.932 0 0 0 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z"/></svg></button>
+        </div>
         <h2 class="brand-title">VIVE QUINTAY</h2>
         <span class="brand-spa">SPA</span>
         <span class="status">
@@ -775,12 +748,6 @@
         <button id="btn-panel" class="solo-admin" onclick="abrirPanel()">PANEL ADMIN</button>
         <button id="btn-pases" class="solo-admin" onclick="abrirPases()">REIMPRIMIR PASES</button>
 
-        <!-- Toggle modo automático (booth) -->
-        <label class="controles-extra" for="toggle-booth">
-            <input type="checkbox" id="toggle-booth" onchange="toggleBooth(this.checked)">
-            <span class="toggle-switch"></span>
-            <span>Modo automático — pantalla se limpia sola</span>
-        </label>
     </div>
 
     <div style="margin:30px 0;"></div>
@@ -916,7 +883,7 @@
                 uidActual = user.uid;
                 usuarioActual = user.displayName || (user.email || "").split("@")[0];
                 if (login) login.style.display = "none";
-                if (!_appIniciada) { _appIniciada = true; iniciarListenerPendientes(); }
+                if (!_appIniciada) { _appIniciada = true; iniciarListenerPendientes(); pintarBooth(); }
                 refrescarJornada();
             } else {
                 rolActual = null;
@@ -1055,9 +1022,17 @@
         let boothActivo = localStorage.getItem('booth') === '1';
         let boothTimer  = null;
 
+        // Sin argumento: alterna. El estado se ve en el propio boton, que era lo que
+        // antes ocupaba un parrafo entero explicandose al pie de la pantalla.
         function toggleBooth(activo) {
-            boothActivo = activo;
-            localStorage.setItem('booth', activo ? '1' : '0');
+            boothActivo = (activo === undefined) ? !boothActivo : !!activo;
+            localStorage.setItem('booth', boothActivo ? '1' : '0');
+            pintarBooth();
+        }
+
+        function pintarBooth() {
+            const b = document.getElementById('btn-booth');
+            if (b) b.classList.toggle('encendido', boothActivo);
         }
 
         function iniciarBoothCountdown() {
