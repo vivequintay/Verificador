@@ -186,19 +186,42 @@
             box-shadow: none;
         }
         #btn-limpiar:active { background: rgba(255,255,255,0.07); box-shadow: none; }
+        /* ─── PENDIENTES y ULT. SALIDAS comparten una fila ───
+           El alto de la pantalla se acabo: cada boton nuevo empuja al resto fuera de
+           vista en un telefono. Estos dos son CONSULTAS —se miran de vez en cuando, no
+           se usan en cada auto— asi que son los que pueden compartir el ancho y dejarle
+           el alto a lo que si se usa a cada rato. */
+        .fila-dos { display: flex; gap: 8px; margin-top: 10px; }
+        .fila-dos button {
+            flex: 1 1 0;
+            min-width: 0;          /* sin esto, el `width:100%` de arriba desborda la fila */
+            margin-top: 0;
+            font-size: 1.15rem;
+            padding: 14px 6px;
+            white-space: nowrap;
+        }
         #btn-total-pendientes {
             background: linear-gradient(135deg, #FF9800, #F57C00);
             color: white;
-            margin-top: 10px;
             font-size: 1.4rem;
             padding: 14px;
         }
         #btn-ultimas-salidas {
             background: linear-gradient(135deg, #00C853, #00913B);
             color: white;
-            margin-top: 10px;
             font-size: 1.4rem;
             padding: 14px;
+        }
+        /* ─── SALIDA ───
+           Del mismo tamano que VERIFICAR porque pasa a ser la otra accion que el operador
+           hace a cada rato, no una consulta. En rojo #D32F2F, que es el rojo que esta app
+           ya usa: gradiente 600->800 de la misma familia, no un rojo nuevo. */
+        #btn-salida {
+            background: linear-gradient(135deg, #E53935, #C62828);
+            color: white;
+            padding: 20px;
+            font-size: 2.4rem;
+            margin-top: 10px;
         }
         #btn-reservas {
             background: linear-gradient(135deg, #8FB7D9, #5E91BE);
@@ -206,6 +229,57 @@
             margin-top: 10px;
             font-size: 1.4rem;
             padding: 14px;
+        }
+        /* ─── PANTALLA DE SALIDA ───
+           Sigue el patron `.rmodal` de la casa (mismo fondo navy, misma cabecera, misma
+           equis). Lo unico propio es la caja donde ira la camara y el par de acciones. */
+        #salida-modal .sal-caja {
+            position: relative; width: 100%; height: min(58vw, 300px);
+            background: #061D31; border: 2px dashed rgba(143,183,217,.35);
+            border-radius: 16px; margin-bottom: 14px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 8px; text-align: center; padding: 16px;
+        }
+        #salida-modal .sal-caja .icono { font-size: 2.4rem; opacity: .5; }
+        #salida-modal .sal-caja p { color: #8FB7D9; font-size: .95rem; font-weight: 700; margin: 0; }
+        #salida-modal .sal-caja small { color: rgba(255,255,255,.45); font-size: .8rem; }
+
+        #salida-modal .sal-o {
+            text-align: center; color: rgba(255,255,255,.35);
+            font-size: .8rem; letter-spacing: 3px; margin: 12px 0 10px;
+        }
+        #salida-modal input {
+            width: 100%; padding: 16px; border-radius: 14px;
+            background: #0D3B5C; border: 2px solid #1B3D5C; color: #fff;
+            font-family: 'Inter', sans-serif; font-size: 1.8rem; font-weight: 800;
+            text-align: center; letter-spacing: 3px; text-transform: uppercase;
+            outline: none;
+        }
+        #salida-modal input:focus { border-color: #8FB7D9; }
+        #salida-modal input::placeholder { color: rgba(255,255,255,.25); letter-spacing: 1px; font-size: 1.1rem; }
+
+        /* Las dos acciones. SALIDA manda —es lo que se hace en casi todos los casos— y
+           REINGRESO es la excepcion: el que vuelve, o la patente tecleada mal. Por eso una
+           es solida y la otra de contorno, en vez de dos botones gritando lo mismo. */
+        #salida-modal .sal-acciones { display: flex; gap: 8px; margin-top: 14px; }
+        #salida-modal .sal-acciones button { flex: 1 1 0; min-width: 0; margin-top: 0; padding: 18px 8px; font-size: 1.3rem; }
+        /* El borde TRANSPARENTE no es decoracion: en una fila flexible, el borde de 2px
+           del boton de contorno se suma por fuera del reparto y lo deja 4px mas ancho que
+           su hermano. Dandoles el mismo borde a los dos, quedan parejos. */
+        #btn-marcar-salida {
+            background: linear-gradient(135deg, #E53935, #C62828); color: #fff;
+            border: 2px solid transparent;
+        }
+        #btn-marcar-reingreso {
+            background: transparent; color: #8FB7D9;
+            border: 2px solid rgba(143,183,217,.45); box-shadow: none;
+        }
+        #btn-marcar-reingreso:active { background: rgba(143,183,217,.10); box-shadow: none; }
+
+        #salida-modal .sal-aviso {
+            margin-top: 18px; padding: 14px; border-radius: 12px;
+            background: rgba(255,152,0,.10); border: 1px solid rgba(255,152,0,.35);
+            color: #FFB74D; font-size: .85rem; line-height: 1.5; text-align: center;
         }
         /* ─── Modal RESERVAS / Escáner ─── */
         .rmodal { display: none; position: fixed; inset: 0; z-index: 99990; background: #0A2F4F; padding: 18px; overflow-y: auto; text-align: left; }
@@ -634,8 +708,11 @@
 
         <button id="btn-limpiar" onclick="limpiar()">LIMPIAR</button>
         <button id="verificar-manual" onclick="verificarPatente()">VERIFICAR</button>
-        <button id="btn-total-pendientes" onclick="verTotalPendientes()">PENDIENTES</button>
-        <button id="btn-ultimas-salidas" onclick="verUltimasSalidas()">ÚLTIMAS 5 SALIDAS</button>
+        <div class="fila-dos">
+            <button id="btn-total-pendientes" onclick="verTotalPendientes()">PENDIENTES</button>
+            <button id="btn-ultimas-salidas" onclick="verUltimasSalidas()">ÚLT. SALIDAS</button>
+        </div>
+        <button id="btn-salida" onclick="abrirSalida()">SALIDA</button>
         <button id="btn-reservas" onclick="abrirReservas()">RESERVAS</button>
         <button id="btn-panel" class="solo-admin" onclick="abrirPanel()">PANEL ADMIN</button>
         <button id="btn-pases" class="solo-admin" onclick="abrirPases()">REIMPRIMIR PASES</button>
@@ -659,6 +736,34 @@
             <button class="rclose" onclick="cerrarReservas()">✕</button>
         </div>
         <div id="res-contenido"></div>
+    </div>
+
+    <!-- SALIDA DE PASE DIARIO -->
+    <div id="salida-modal" class="rmodal">
+        <div class="rmodal-head">
+            <span>SALIDA DE PASE DIARIO</span>
+            <button class="rclose" onclick="cerrarSalida()">&#10005;</button>
+        </div>
+
+        <div class="sal-caja">
+            <span class="icono">&#128247;</span>
+            <p>AQUI SE ABRIRA LA CAMARA</p>
+            <small>apuntar al codigo de barras de la colilla</small>
+        </div>
+
+        <div class="sal-o">O TAMBIEN</div>
+        <input id="sal-patente" type="text" inputmode="latin" autocomplete="off"
+               placeholder="escribir la patente" maxlength="10">
+
+        <div class="sal-acciones">
+            <button id="btn-marcar-salida">SALIDA</button>
+            <button id="btn-marcar-reingreso">REINGRESO</button>
+        </div>
+
+        <div class="sal-aviso">
+            Esta pantalla es la MAQUETA para revisar como se ve y se alcanza con el pulgar.
+            Todavia no enciende la camara ni registra nada.
+        </div>
     </div>
 
     <!-- Escáner QR -->
@@ -1009,6 +1114,21 @@
             }
             document.getElementById('res-contenido').innerHTML = h;
         }
+        // ─── Pantalla de SALIDA (maqueta: todavia no escanea ni registra) ───
+        function abrirSalida() {
+            const m = document.getElementById('salida-modal');
+            // Volver arriba SIEMPRE al abrir. Es la misma trampa que dejo el escaner del
+            // kiosco invisible durante dias: un modal con scroll conserva la posicion
+            // entre aperturas, y la segunda vez se abre a media altura.
+            m.scrollTop = 0;
+            m.classList.add('activo');
+            document.getElementById('sal-patente').value = "";
+        }
+
+        function cerrarSalida() {
+            document.getElementById('salida-modal').classList.remove('activo');
+        }
+
         function escanearQR() {
             document.getElementById('scanner-err').textContent = "";
             document.getElementById('scanner-modal').classList.add('activo');
