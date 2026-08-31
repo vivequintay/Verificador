@@ -23,7 +23,11 @@
             color: white;
             font-family: 'Inter', 'Segoe UI', sans-serif;
             margin: 0;
-            padding: 20px;
+            /* El fondo lleva MAS margen que los lados: "Cerrar sesión" esta FIJO abajo y
+               flota sobre la pagina, asi que sin este sitio reservado cualquier cosa que
+               llegue al final se le cruza por debajo. Es 10 del borde + el alto del boton
+               + aire. */
+            padding: 20px 20px 62px;
             text-align: center;
             overflow-x: hidden;
             transition: background-color 0.25s ease, color 0.25s ease;
@@ -244,10 +248,9 @@
            salidas, los pendientes). En reposo estaba vacia y se leia como un hueco: la
            pantalla parecia cortada a la mitad.
 
-           DOS COSAS SE ARREGLAN DE UNA. La primera es que el hueco pase a leerse como un
-           sitio a proposito. La segunda importa mas y no se ve: al tener alto minimo, el
-           resto de la pantalla YA NO SALTA cuando aparece un mensaje. Antes cada aviso
-           empujaba el boton de cerrar sesion hacia abajo de golpe.
+           BAJITA A PROPOSITO. Solo tiene que DEMARCAR el sitio, no reservarlo: con 132px
+           llegaba al fondo de la pantalla y se cruzaba con "Cerrar sesión", que esta fijo
+           ahi abajo. Con 46 se ve igual de intencional y no estorba.
 
            SIN TEXTO cuando esta vacia, como corresponde: tres puntos discretos alcanzan
            para decir "aca salen cosas" y no hay que traducirlos ni leerlos.
@@ -255,7 +258,7 @@
            El `:has()` es lo que permite distinguir vacia de llena sin una linea de
            JavaScript, o sea sin riesgo de que el estilo y el contenido se desincronicen.
            Donde no exista, no se dibuja nada y queda como estaba: se degrada solo. */
-        #zona-avisos { min-height: 132px; margin-top: 14px; }
+        #zona-avisos { min-height: 46px; margin-top: 14px; }
 
         #zona-avisos:has(#display-resultado:empty):has(#lista-pendientes:empty) {
             border: 1.5px dashed rgba(143,183,217,0.18);
