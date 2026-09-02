@@ -24,7 +24,13 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 FUENTE = os.path.join(AQUI, "index.html")
 
 # Las funciones que se recortan del index.html para probarlas aisladas.
-FUNCIONES = ("paseEstaPagado", "fechaDeHoy", "leerColilla")
+FUNCIONES = ("paseEstaPagado", "fechaDeHoy", "leerColilla",
+             "salMejorCamara", "salNombreCamara")
+
+# Constantes de una linea que esas funciones necesitan. Se recortan igual que las
+# funciones: la gracia de este arnes es probar el codigo REAL, y una constante copiada a
+# mano en las pruebas es exactamente la clase de copia que se desactualiza sola.
+CONSTANTES = ("SAL_LENTES_MALAS",)
 
 CASOS = """
 // ---- paseEstaPagado: la regla que decide si el auto puede irse ----
@@ -79,6 +85,44 @@ iguala('sin patente no pasa', leerColilla('VQS-'), null);
 iguala('patente muy corta no pasa', leerColilla('VQS-AB'), null);
 iguala('tres partes no pasan', leerColilla('VQS-AABB05-310826'), null);
 
+// ---- salMejorCamara: cual de las lentes traseras probar primero ----
+// `facingMode: 'environment'` no elige una camara, dice "una trasera cualquiera", y en un
+// telefono con tres lentes suele tocarle la GRAN ANGULAR — la peor para leer de cerca,
+// porque su distancia minima de enfoque es la mas larga. Esta heuristica es lo unico que
+// evita que el operador tenga que corregir a mano en CADA telefono nuevo.
+// Android suele dar solo "camera2 N, facing back", sin decir que lente es. La convencion
+// es que la 0 es la principal.
+iguala('entre camaras sin nombre descriptivo, elige la de menor indice',
+       salMejorCamara([{label:'camera2 2, facing back'},
+                       {label:'camera2 0, facing back'},
+                       {label:'camera2 3, facing back'}]), 1);
+
+// Cuando SI se anuncian, se descarta la angular y la teleobjetivo.
+iguala('descarta la gran angular',
+       salMejorCamara([{label:'Back Ultra Wide Camera'},
+                       {label:'Back Camera'},
+                       {label:'Back Telephoto Camera'}]), 1);
+iguala('descarta tambien la de profundidad y la macro',
+       salMejorCamara([{label:'Back Depth Sensor'},
+                       {label:'Back Macro'},
+                       {label:'Back Dual Camera'}]), 2);
+
+// Si TODAS parecen malas no se puede descartar ninguna: mejor ofrecer una que ninguna.
+iguala('si todas parecen malas igual devuelve una',
+       salMejorCamara([{label:'Back Ultra Wide'}, {label:'Back Telephoto'}]), 0);
+iguala('con una sola camara devuelve esa', salMejorCamara([{label:'Back Camera'}]), 0);
+iguala('sin etiquetas no revienta', salMejorCamara([{label:''}, {label:''}]), 0);
+
+// ---- salNombreCamara: lo que ve el operador al cambiarlas ----
+iguala('traduce el nombre tecnico de Android',
+       salNombreCamara({label:'camera2 0, facing back'}, 0), 'Cámara 1');
+iguala('y el indice va en base 1, no en base 0',
+       salNombreCamara({label:'camera2 2, facing back'}, 2), 'Cámara 3');
+iguala('un nombre descriptivo se muestra tal cual',
+       salNombreCamara({label:'Back Camera'}, 0), 'Back Camera');
+iguala('sin etiqueta, numera por posicion',
+       salNombreCamara({label:''}, 1), 'Cámara 2');
+
 // ---- fechaDeHoy: tiene que hablar el idioma de la caja ----
 // La caja escribe con strftime('%d-%m-%Y'). Si aca saliera '2026-08-30' o '30/08/2026',
 // el filtro de "ultimas salidas" no encontraria NADA y el listado quedaria siempre vacio.
@@ -128,6 +172,14 @@ def recortar(fuente, nombre):
     raise SystemExit("*** la funcion %s no cierra" % nombre)
 
 
+def recortar_const(fuente, nombre):
+    """Saca la linea `const NOMBRE = ...;` del index.html."""
+    m = re.search(r"^\s*const\s+%s\s*=.*?;\s*$" % re.escape(nombre), fuente, re.M)
+    if not m:
+        raise SystemExit("*** no encontre la constante %s en index.html" % nombre)
+    return m.group(0).strip()
+
+
 def main():
     with open(FUENTE, encoding="utf-8") as f:
         fuente = f.read()
@@ -144,9 +196,15 @@ def main():
         raise SystemExit("*** el escaner de SALIDA ya no usa leerColilla()")
     if "paseEstaPagado(d)" not in fuente:
         raise SystemExit("*** la pantalla de SALIDA ya no comprueba si el pase esta pagado")
+    # La camara elegida tiene que quedar GUARDADA. Sin esto el operador la corrige cada vez
+    # que abre la pantalla, y a la tercera deja de usar el escaner.
+    if "SAL_CAMARA_GUARDADA" not in fuente or "localStorage.setItem(SAL_CAMARA_GUARDADA" not in fuente:
+        raise SystemExit("*** la camara elegida ya no se guarda")
 
     pagina = (PAGINA
-              .replace("__FUNCIONES__", "\n".join(recortar(fuente, n) for n in FUNCIONES))
+              .replace("__FUNCIONES__",
+                       "\n".join([recortar_const(fuente, c) for c in CONSTANTES]
+                                 + [recortar(fuente, n) for n in FUNCIONES]))
               .replace("__CASOS__", CASOS))
 
     tmp = tempfile.mkdtemp(prefix="verif_")

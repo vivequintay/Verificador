@@ -325,6 +325,18 @@
         #salida-modal #sal-cam { width: 100%; height: 100%; object-fit: cover; display: block; }
         /* Mira APAISADA: un codigo de barras es ancho y bajo. Con un recuadro cuadrado el
            operador aleja el telefono hasta encuadrarlo y ahi las barras dejan de leerse. */
+        /* Cambiar de camara. Va DENTRO de la caja del video y chico: se usa una vez por
+           telefono y despues nunca mas, porque la eleccion queda guardada. */
+        #sal-cambiar-cam {
+            position: absolute; top: 8px; right: 8px; z-index: 5;
+            width: auto; min-width: 46px; padding: 6px 10px;
+            background: rgba(0,0,0,.55); color: #FFB300;
+            border: 1.5px solid rgba(255,179,0,.6); border-radius: 20px;
+            font-size: .78rem; font-weight: 800; font-family: inherit;
+            box-shadow: none; display: none;
+        }
+        #sal-cambiar-cam.hay-varias { display: block; }
+
         #salida-modal .sal-mira {
             position: absolute; left: 8%; right: 8%; top: 50%; transform: translateY(-50%);
             height: 78px; border: 2px solid rgba(255,179,0,.75); border-radius: 8px;
@@ -794,7 +806,7 @@
             <button class="rclose" onclick="cerrarSalida()">&#10005;</button>
         </div>
 
-        <div class="sal-caja"><video id="sal-cam" playsinline muted></video><div class="sal-mira"></div></div>
+        <div class="sal-caja"><video id="sal-cam" playsinline muted></video><div class="sal-mira"></div><button id="sal-cambiar-cam" onclick="salSiguienteCamara()" title="Cambiar de cámara">1/1</button></div>
         <p id="sal-estado">Apunta al código de barras de la colilla</p>
         <div id="sal-resultado"></div>
 
@@ -1286,6 +1298,76 @@
             salArrancarCamara();
         }
 
+        // ─── QUE CAMARA USAR ───
+        // `facingMode: 'environment'` NO elige una camara: dice "una trasera, la que sea".
+        // En un telefono con tres lentes el navegador decide, y casi siempre le toca la
+        // GRAN ANGULAR — que es justo la peor para esto, porque su distancia minima de
+        // enfoque es la mas larga de todas y una colilla a 15 cm le queda borrosa.
+        //
+        // No hay forma FIABLE de saber cual es la buena leyendo su nombre: cada marca los
+        // escribe distinto y Android suele dar solo "camera2 0, facing back". Asi que se
+        // hacen las dos cosas: una eleccion inicial informada, y sobre todo un boton para
+        // cambiarla que RECUERDA la elegida. El operador prueba una vez por telefono y
+        // nunca mas.
+        const SAL_CAMARA_GUARDADA = 'vq_camara_salida';
+        let salCamaras = [];        // las traseras disponibles
+        let salCamaraIdx = 0;
+
+        // Lentes que casi nunca son la buena para leer de cerca.
+        const SAL_LENTES_MALAS = /ultra|wide|angular|gran|tele|zoom|depth|profundidad|macro|mono/i;
+
+        function salNombreCamara(cam, i) {
+            const l = (cam.label || '').trim();
+            if (!l) return 'Cámara ' + (i + 1);
+            // "camera2 0, facing back" -> "Cámara 1". Lo demas se muestra tal cual, corto.
+            const m = l.match(/camera2?\s+(\d+)/i);
+            return m ? ('Cámara ' + (Number(m[1]) + 1)) : l.slice(0, 22);
+        }
+
+        // Entre las traseras, cual probar PRIMERO. Heuristica, no certeza:
+        //   1. descartar las que se anuncian como angular/tele/macro/profundidad
+        //   2. de las que quedan, la de menor indice — en Android la principal suele
+        //      ser `camera2 0`, y el resto son las secundarias
+        function salMejorCamara(lista) {
+            const buenas = lista.filter(function (c) { return !SAL_LENTES_MALAS.test(c.label || ''); });
+            const candidatas = buenas.length ? buenas : lista;
+            let mejor = 0, menor = Infinity;
+            candidatas.forEach(function (c) {
+                const m = (c.label || '').match(/camera2?\s+(\d+)/i);
+                const n = m ? Number(m[1]) : 99;
+                if (n < menor) { menor = n; mejor = lista.indexOf(c); }
+            });
+            return Math.max(0, mejor);
+        }
+
+        async function salListarCamaras() {
+            try {
+                const todos = await navigator.mediaDevices.enumerateDevices();
+                const video = todos.filter(function (d) { return d.kind === 'videoinput'; });
+                // Los nombres solo existen DESPUES de conceder permiso; por eso esto se
+                // llama con la camara ya abierta. Sin nombres no se puede filtrar por
+                // trasera, asi que en ese caso se ofrecen todas.
+                const traseras = video.filter(function (d) { return /back|rear|trasera|environment/i.test(d.label || ''); });
+                salCamaras = traseras.length ? traseras : video;
+            } catch (e) {
+                salCamaras = [];
+            }
+            const btn = document.getElementById('sal-cambiar-cam');
+            if (btn) {
+                btn.classList.toggle('hay-varias', salCamaras.length > 1);
+                btn.textContent = (salCamaraIdx + 1) + '/' + salCamaras.length;
+            }
+        }
+
+        function salSiguienteCamara() {
+            if (salCamaras.length < 2) return;
+            salCamaraIdx = (salCamaraIdx + 1) % salCamaras.length;
+            const elegida = salCamaras[salCamaraIdx];
+            try { localStorage.setItem(SAL_CAMARA_GUARDADA, elegida.deviceId); } catch (e) {}
+            salApagarCamara();
+            salArrancarCamara();
+        }
+
         // ─── EL ESCANER, CON EL LECTOR NATIVO DEL TELEFONO ───
         // Se probo primero con html5-qrcode (la libreria que usa el escaner de reservas) y
         // EN TERRENO NO LEYO NINGUN CODIGO DE BARRAS: ni enfocaba bien ni reconocia, ni
@@ -1331,22 +1413,62 @@
             // RESOLUCION ALTA Y ENFOQUE CONTINUO a proposito: un codigo de barras son
             // rayas finas y con poca resolucion se empastan. Van como `ideal`, asi que
             // donde el telefono no pueda darlas, entrega lo que tenga en vez de fallar.
-            try {
-                salStream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: 'environment',
-                        width:  { ideal: 1920 },
-                        height: { ideal: 1080 },
-                        advanced: [{ focusMode: 'continuous' }],
-                    },
-                });
+            // Si ya se eligio una camara en ESTE telefono, se pide por su identificador
+            // exacto. Si no, `environment` para conseguir el permiso y poder enumerarlas.
+            let guardada = null;
+            try { guardada = localStorage.getItem(SAL_CAMARA_GUARDADA); } catch (e) {}
+            const base = {
+                width:  { ideal: 1920 },      // rayas finas: con poca resolucion se empastan
+                height: { ideal: 1080 },
+                advanced: [{ focusMode: 'continuous' }],
+            };
+            const pedir = async function (restricciones) {
+                salStream = await navigator.mediaDevices.getUserMedia({ video: restricciones });
                 video.srcObject = salStream;
                 await video.play();
+            };
+
+            try {
+                if (guardada) {
+                    // `exact`: si esa camara ya no existe (otro telefono, otra sesion) es
+                    // preferible que falle y caer a la automatica, y no que abra otra
+                    // cualquiera haciendose pasar por la elegida.
+                    try {
+                        await pedir(Object.assign({ deviceId: { exact: guardada } }, base));
+                    } catch (e) {
+                        try { localStorage.removeItem(SAL_CAMARA_GUARDADA); } catch (x) {}
+                        await pedir(Object.assign({ facingMode: 'environment' }, base));
+                    }
+                } else {
+                    await pedir(Object.assign({ facingMode: 'environment' }, base));
+                }
             } catch (e) {
                 salMensaje(salMotivoCamara(e) + '. Escribe la patente. [' + salDiagnostico() + ']');
                 salStream = null;
                 return;
             }
+
+            // Con el permiso ya dado, los nombres de las camaras son visibles.
+            await salListarCamaras();
+            const actual = (salStream.getVideoTracks()[0] || {}).getSettings
+                         ? salStream.getVideoTracks()[0].getSettings().deviceId : null;
+            const pos = salCamaras.findIndex(function (c) { return c.deviceId === actual; });
+            salCamaraIdx = pos >= 0 ? pos : 0;
+
+            // Primera vez en este telefono: si la que abrio el navegador NO es la que la
+            // heuristica prefiere, se cambia sola. Despues manda siempre lo guardado.
+            if (!guardada && salCamaras.length > 1) {
+                const mejor = salMejorCamara(salCamaras);
+                if (mejor !== salCamaraIdx) {
+                    salCamaraIdx = mejor;
+                    try { localStorage.setItem(SAL_CAMARA_GUARDADA, salCamaras[mejor].deviceId); } catch (e) {}
+                    salApagarCamara();
+                    return salArrancarCamara();
+                }
+            }
+
+            const btn = document.getElementById('sal-cambiar-cam');
+            if (btn) btn.textContent = (salCamaraIdx + 1) + '/' + salCamaras.length;
 
             if (!('BarcodeDetector' in window)) {
                 salMensaje('La cámara funciona, pero este navegador no trae el lector de códigos. '
@@ -1362,7 +1484,10 @@
             }
 
             salLeyendo = true;
-            salMensaje('Apunta al código de barras de la colilla');
+            salMensaje(salCamaras.length > 1
+                ? 'Apunta al código · ' + salNombreCamara(salCamaras[salCamaraIdx], salCamaraIdx)
+                  + ' (toca ' + (salCamaraIdx + 1) + '/' + salCamaras.length + ' para cambiarla)'
+                : 'Apunta al código de barras de la colilla');
             let fallos = 0;
             const tick = async () => {
                 if (!salLeyendo) return;
