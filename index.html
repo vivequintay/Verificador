@@ -313,16 +313,19 @@
         /* ─── PANTALLA DE SALIDA ───
            Sigue el patron `.rmodal` de la casa (mismo fondo navy, misma cabecera, misma
            equis). Lo unico propio es la caja donde ira la camara y el par de acciones. */
+        /* La caja de la camara con medidas PROPIAS y alto explicito. Es la misma trampa
+           que dejo el escaner del kiosco invisible durante dias: el <video> no tiene
+           tamano hasta que el stream pinta, asi que sin un alto fijo el contenedor se
+           encoge hasta desaparecer y la camara queda encendida pero sin donde verse. */
         #salida-modal .sal-caja {
-            position: relative; width: 100%; height: min(58vw, 300px);
-            background: #061D31; border: 2px dashed rgba(143,183,217,.35);
-            border-radius: 16px; margin-bottom: 14px;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            gap: 8px; text-align: center; padding: 16px;
+            position: relative; width: 100%; height: min(58vw, 260px);
+            flex: 0 0 auto; background: #000;
+            border-radius: 16px; overflow: hidden; margin-bottom: 10px;
         }
-        #salida-modal .sal-caja .icono { font-size: 2.4rem; opacity: .5; }
-        #salida-modal .sal-caja p { color: #8FB7D9; font-size: .95rem; font-weight: 700; margin: 0; }
-        #salida-modal .sal-caja small { color: rgba(255,255,255,.45); font-size: .8rem; }
+        #salida-modal #sal-cam { width: 100%; height: 100%; }
+        #salida-modal #sal-cam video { width: 100% !important; height: 100% !important; object-fit: cover; }
+        #sal-estado { color: #8FB7D9; font-size: .85rem; text-align: center; margin: 0 0 4px; min-height: 1.2em; }
+        #sal-resultado:not(:empty) { margin-top: 12px; }
 
         #salida-modal .sal-o {
             text-align: center; color: rgba(255,255,255,.35);
@@ -785,24 +788,23 @@
             <button class="rclose" onclick="cerrarSalida()">&#10005;</button>
         </div>
 
-        <div class="sal-caja">
-            <span class="icono">&#128247;</span>
-            <p>AQUI SE ABRIRA LA CAMARA</p>
-            <small>apuntar al codigo de barras de la colilla</small>
-        </div>
+        <div class="sal-caja"><div id="sal-cam"></div></div>
+        <p id="sal-estado">Apunta al código de barras de la colilla</p>
+        <div id="sal-resultado"></div>
 
         <div class="sal-o">O TAMBIEN</div>
         <input id="sal-patente" type="text" inputmode="latin" autocomplete="off"
                placeholder="escribir la patente" maxlength="10">
 
         <div class="sal-acciones">
-            <button id="btn-marcar-salida">SALIDA</button>
-            <button id="btn-marcar-reingreso">REINGRESO</button>
+            <button id="btn-marcar-salida" onclick="salBuscarTecleada()">SALIDA</button>
+            <button id="btn-marcar-reingreso" onclick="salBuscarTecleada()">REINGRESO</button>
         </div>
 
         <div class="sal-aviso">
-            Esta pantalla es la MAQUETA para revisar como se ve y se alcanza con el pulgar.
-            Todavia no enciende la camara ni registra nada.
+            La cámara ya lee, pero <b>todavía no se guarda nada</b>. Esta versión existe
+            para comprobar en terreno que el código se lee bien y que los datos que
+            aparecen son los correctos.
         </div>
     </div>
 
@@ -1162,7 +1164,108 @@
             }
             document.getElementById('res-contenido').innerHTML = h;
         }
-        // ─── Pantalla de SALIDA (maqueta: todavia no escanea ni registra) ───
+        // ─── SALIDA: leer la colilla y decir QUE es, sin guardar nada (fase 2) ───
+        let salEscaner = null;
+
+        // Espejo en JavaScript de `payload_salida` (vqspa_core.py). El texto lo escribe la
+        // caja en Python y lo lee esto: son dos programas que no comparten una linea y
+        // tienen que entenderse exacto. Si cambia alla, cambia aca.
+        function leerColilla(texto) {
+            const partes = String(texto || "").trim().toUpperCase().split("-");
+            if (partes.length !== 2 || partes[0] !== "VQS") return null;
+            const p = partes[1].replace(/[^A-Z0-9]/g, "");
+            return p.length >= 4 ? p : null;
+        }
+
+        function salMensaje(txt) {
+            const e = document.getElementById('sal-estado');
+            if (e) e.textContent = txt;
+        }
+
+        function salTarjeta(titulo, sub, chips, fondo, texto) {
+            document.getElementById('sal-resultado').innerHTML =
+                '<div class="result-card" style="background:' + fondo + ';color:' + texto + ';">' +
+                '<h1>' + titulo + '</h1><h2>' + sub + '</h2>' +
+                (chips || []).map(function (c) { return '<span class="result-chip">' + c + '</span>'; }).join('') +
+                '</div>';
+        }
+
+        // Cuanto lleva dentro, a partir de la entrada que guarda la caja (DD-MM-AAAA + HH:MM:SS).
+        function salTiempoDentro(fecha, hora) {
+            try {
+                const f = String(fecha).split("-"), h = String(hora || "00:00:00").split(":");
+                const ini = new Date(+f[2], +f[1] - 1, +f[0], +h[0], +h[1], +h[2] || 0);
+                return _fmtDur(Date.now() - ini.getTime());
+            } catch (e) { return null; }
+        }
+
+        async function salBuscar(patenteCruda) {
+            const patente = String(patenteCruda || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+            if (patente.length < 4) { salMensaje("Patente inválida"); return; }
+
+            salMensaje("Buscando " + patente + "…");
+            let doc;
+            try {
+                doc = await db.collection("activos").doc(patente).get();
+            } catch (e) {
+                salMensaje("Sin conexión — no se pudo consultar");
+                return;
+            }
+
+            if (!doc.exists) {
+                vibrar("pendiente");
+                salTarjeta("NO REGISTRADO", patente, ["no está en el patio hoy"],
+                           "#D32F2F", "#fff");
+                salMensaje("");
+                return;
+            }
+
+            const d = doc.data();
+            const tipo = String(d.tipo || "").toLowerCase().trim();
+            salMensaje("");
+
+            // Un ticket por minuto no se despacha en terreno: su salida es un COBRO.
+            if (tipo !== "pase diario") {
+                vibrar("pendiente");
+                salTarjeta("PAGA EN CAJA", d.tipo || "—",
+                           [patente, "esta salida se cobra abajo"],
+                           "linear-gradient(135deg,#FF9800,#F57C00)", "#1a1a1a");
+                return;
+            }
+
+            // Un pase sin pagar tampoco. Es la misma regla que ya protege la verificación.
+            if (!paseEstaPagado(d)) {
+                vibrar("pendiente");
+                salTarjeta("DEBE PAGAR EN CAJA", "PASE DIARIO PENDIENTE",
+                           [patente, "ingresó " + (d.hora || "--:--")],
+                           "linear-gradient(135deg,#FF9800,#F57C00)", "#1a1a1a");
+                return;
+            }
+
+            // Ya se le dio salida antes (lo escribirá la fase 3; acá sólo se muestra).
+            if (d.salida_terreno) {
+                vibrar("frecuente");
+                salTarjeta("YA SALIÓ", "PASE DIARIO",
+                           [patente, "salida " + d.salida_terreno, "usa REINGRESO si volvió"],
+                           "linear-gradient(135deg,#546E7A,#37474F)", "#fff");
+                return;
+            }
+
+            const dentro = salTiempoDentro(d.fecha, d.hora);
+            vibrar("pagado");
+            salTarjeta("SALIDA", "PASE DIARIO",
+                       [patente,
+                        "entró " + (d.hora || "--:--"),
+                        dentro ? "lleva " + dentro : null,
+                        "todavía NO se registra"].filter(Boolean),
+                       "linear-gradient(135deg,#00C853,#00913B)", "#fff");
+        }
+
+        function salBuscarTecleada() {
+            salBuscar(document.getElementById('sal-patente').value);
+        }
+
+        // ─── Abrir y cerrar la pantalla ───
         function abrirSalida() {
             const m = document.getElementById('salida-modal');
             // Volver arriba SIEMPRE al abrir. Es la misma trampa que dejo el escaner del
@@ -1171,10 +1274,45 @@
             m.scrollTop = 0;
             m.classList.add('activo');
             document.getElementById('sal-patente').value = "";
+            document.getElementById('sal-resultado').innerHTML = "";
+            salArrancarCamara();
+        }
+
+        function salArrancarCamara() {
+            if (salEscaner) return;
+            salMensaje("Encendiendo la cámara…");
+            // CODE_128 es el de la colilla; QR_CODE se deja porque el pase PENDIENTE
+            // imprime uno con la patente — escanearlo por error responde "DEBE PAGAR EN
+            // CAJA", que es justo lo que el operador necesita saber.
+            const formatos = (typeof Html5QrcodeSupportedFormats !== "undefined")
+                ? [Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.QR_CODE]
+                : undefined;
+            salEscaner = new Html5Qrcode('sal-cam', { formatsToSupport: formatos, verbose: false });
+            salEscaner.start(
+                { facingMode: 'environment' },
+                { fps: 10, qrbox: { width: 260, height: 130 } },   // apaisado: el codigo de barras es ancho y bajo
+                function (txt) {
+                    const p = leerColilla(txt) || txt;   // colilla, o un QR con la patente pelada
+                    salBuscar(p);
+                },
+                function () {}
+            ).then(function () {
+                salMensaje("Apunta al código de barras de la colilla");
+            }).catch(function (e) {
+                salMensaje("No se pudo abrir la cámara: " + e);
+                salEscaner = null;
+            });
         }
 
         function cerrarSalida() {
             document.getElementById('salida-modal').classList.remove('activo');
+            // APAGAR LA CAMARA AL CERRAR, siempre. Si queda encendida se come la bateria
+            // del telefono del operador y ademas bloquea la camara para el otro escaner.
+            if (salEscaner) {
+                const e = salEscaner;
+                salEscaner = null;
+                e.stop().then(function () { try { e.clear(); } catch (x) {} }).catch(function () {});
+            }
         }
 
         function escanearQR() {

@@ -24,7 +24,7 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 FUENTE = os.path.join(AQUI, "index.html")
 
 # Las funciones que se recortan del index.html para probarlas aisladas.
-FUNCIONES = ("paseEstaPagado", "fechaDeHoy")
+FUNCIONES = ("paseEstaPagado", "fechaDeHoy", "leerColilla")
 
 CASOS = """
 // ---- paseEstaPagado: la regla que decide si el auto puede irse ----
@@ -54,6 +54,30 @@ iguala('PENDIENTE en mayusculas sigue siendo pendiente',
        paseEstaPagado({ metodo_pago: 'PENDIENTE' }), false);
 iguala('pendiente con espacios sigue siendo pendiente',
        paseEstaPagado({ metodo_pago: ' Pendiente ' }), false);
+
+// ---- leerColilla: EL CONTRATO CON LA CAJA ----
+// El texto del codigo de barras lo escribe Python (`payload_salida` en vqspa_core) y lo
+// lee esto. Son dos programas, en dos repos, que no comparten una linea de codigo — y los
+// tickets ya impresos y en el bolsillo de un cliente no se pueden corregir. Estas pruebas
+// son el espejo exacto de las de test_colilla_salida.py.
+iguala('lee una colilla', leerColilla('VQS-AABB05'), 'AABB05');
+iguala('no le importan las mayusculas', leerColilla('vqs-aabb05'), 'AABB05');
+iguala('aguanta espacios alrededor', leerColilla('  VQS-AABB05  '), 'AABB05');
+
+// El 99,5% de las patentes tiene 6 caracteres, pero en 18 meses hay 65 con 5, 7, 8 y 13.
+iguala('acepta patentes que NO miden seis', leerColilla('VQS-ABC1234'), 'ABC1234');
+iguala('y las cortas tambien', leerColilla('VQS-XY12'), 'XY12');
+
+// Lo que NO es una colilla. La patente pelada es justo lo que lleva el QR de COBRO del
+// pase pendiente: si pasara por colilla, un pase impago se daria por salido.
+iguala('una patente pelada NO es colilla', leerColilla('AABB05'), null);
+iguala('otra marca no pasa', leerColilla('XXX-AABB05'), null);
+iguala('basura no revienta', leerColilla('hola'), null);
+iguala('vacio no revienta', leerColilla(''), null);
+iguala('nulo no revienta', leerColilla(null), null);
+iguala('sin patente no pasa', leerColilla('VQS-'), null);
+iguala('patente muy corta no pasa', leerColilla('VQS-AB'), null);
+iguala('tres partes no pasan', leerColilla('VQS-AABB05-310826'), null);
 
 // ---- fechaDeHoy: tiene que hablar el idioma de la caja ----
 // La caja escribe con strftime('%d-%m-%Y'). Si aca saliera '2026-08-30' o '30/08/2026',
@@ -113,6 +137,13 @@ def main():
     # pantalla vuelve a mentir. Esto es lo que de verdad protege contra la recaida.
     if "paseEstaPagado(data)" not in fuente:
         raise SystemExit("*** el index.html ya no consulta paseEstaPagado() al mostrar el pase")
+    # Lo mismo para la salida: que el escaner SIGA pasando por el lector de colillas. Sin
+    # esto, alguien podria borrar la llamada y las pruebas de arriba seguirian verdes
+    # mientras el escaner interpreta cualquier cosa como patente.
+    if "leerColilla(txt)" not in fuente:
+        raise SystemExit("*** el escaner de SALIDA ya no usa leerColilla()")
+    if "paseEstaPagado(d)" not in fuente:
+        raise SystemExit("*** la pantalla de SALIDA ya no comprueba si el pase esta pagado")
 
     pagina = (PAGINA
               .replace("__FUNCIONES__", "\n".join(recortar(fuente, n) for n in FUNCIONES))
