@@ -322,8 +322,14 @@
             flex: 0 0 auto; background: #000;
             border-radius: 16px; overflow: hidden; margin-bottom: 10px;
         }
-        #salida-modal #sal-cam { width: 100%; height: 100%; }
-        #salida-modal #sal-cam video { width: 100% !important; height: 100% !important; object-fit: cover; }
+        #salida-modal #sal-cam { width: 100%; height: 100%; object-fit: cover; display: block; }
+        /* Mira APAISADA: un codigo de barras es ancho y bajo. Con un recuadro cuadrado el
+           operador aleja el telefono hasta encuadrarlo y ahi las barras dejan de leerse. */
+        #salida-modal .sal-mira {
+            position: absolute; left: 8%; right: 8%; top: 50%; transform: translateY(-50%);
+            height: 78px; border: 2px solid rgba(255,179,0,.75); border-radius: 8px;
+            box-shadow: 0 0 0 2000px rgba(0,0,0,.35); pointer-events: none;
+        }
         #sal-estado { color: #8FB7D9; font-size: .85rem; text-align: center; margin: 0 0 4px; min-height: 1.2em; }
         #sal-resultado:not(:empty) { margin-top: 12px; }
 
@@ -788,7 +794,7 @@
             <button class="rclose" onclick="cerrarSalida()">&#10005;</button>
         </div>
 
-        <div class="sal-caja"><div id="sal-cam"></div></div>
+        <div class="sal-caja"><video id="sal-cam" playsinline muted></video><div class="sal-mira"></div></div>
         <p id="sal-estado">Apunta al código de barras de la colilla</p>
         <div id="sal-resultado"></div>
 
@@ -1165,7 +1171,6 @@
             document.getElementById('res-contenido').innerHTML = h;
         }
         // ─── SALIDA: leer la colilla y decir QUE es, sin guardar nada (fase 2) ───
-        let salEscaner = null;
 
         // Espejo en JavaScript de `payload_salida` (vqspa_core.py). El texto lo escribe la
         // caja en Python y lo lee esto: son dos programas que no comparten una linea y
@@ -1253,11 +1258,14 @@
 
             const dentro = salTiempoDentro(d.fecha, d.hora);
             vibrar("pagado");
+            // La hora de SALIDA es AHORA: el auto se esta yendo en este momento, y esa es
+            // la hora que la fase 3 va a guardar. La de entrada ya no se muestra — lo que
+            // el operador necesita ver es lo que va a quedar registrado.
             salTarjeta("SALIDA", "PASE DIARIO",
                        [patente,
-                        "entró " + (d.hora || "--:--"),
-                        dentro ? "lleva " + dentro : null,
-                        "todavía NO se registra"].filter(Boolean),
+                        "SALIDA: " + _hm(new Date()),
+                        dentro ? "ESTADÍA: " + dentro : null,
+                        "SIN REGISTRO"].filter(Boolean),
                        "linear-gradient(135deg,#00C853,#00913B)", "#fff");
         }
 
@@ -1278,41 +1286,126 @@
             salArrancarCamara();
         }
 
-        function salArrancarCamara() {
-            if (salEscaner) return;
-            salMensaje("Encendiendo la cámara…");
-            // CODE_128 es el de la colilla; QR_CODE se deja porque el pase PENDIENTE
-            // imprime uno con la patente — escanearlo por error responde "DEBE PAGAR EN
-            // CAJA", que es justo lo que el operador necesita saber.
-            const formatos = (typeof Html5QrcodeSupportedFormats !== "undefined")
-                ? [Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.QR_CODE]
-                : undefined;
-            salEscaner = new Html5Qrcode('sal-cam', { formatsToSupport: formatos, verbose: false });
-            salEscaner.start(
-                { facingMode: 'environment' },
-                { fps: 10, qrbox: { width: 260, height: 130 } },   // apaisado: el codigo de barras es ancho y bajo
-                function (txt) {
-                    const p = leerColilla(txt) || txt;   // colilla, o un QR con la patente pelada
-                    salBuscar(p);
-                },
-                function () {}
-            ).then(function () {
-                salMensaje("Apunta al código de barras de la colilla");
-            }).catch(function (e) {
-                salMensaje("No se pudo abrir la cámara: " + e);
-                salEscaner = null;
-            });
+        // ─── EL ESCANER, CON EL LECTOR NATIVO DEL TELEFONO ───
+        // Se probo primero con html5-qrcode (la libreria que usa el escaner de reservas) y
+        // EN TERRENO NO LEYO NINGUN CODIGO DE BARRAS: ni enfocaba bien ni reconocia, ni
+        // con la linterna. Una app dedicada leyo la misma colilla en menos de un segundo.
+        // El motivo es que esa libreria esta hecha para QR y decodifica por software.
+        //
+        // `BarcodeDetector` es el lector del propio sistema —el mismo que usan las apps
+        // dedicadas—, va por hardware y es incomparablemente mas rapido con codigos de
+        // barras. Es exactamente lo que ya usa la PWA de administracion para el kiosco.
+        const SAL_FORMATOS = ['code_128', 'qr_code'];
+        const SAL_FALLOS_TOLERADOS = 30;   // fallar algunos cuadros es normal; treinta no
+        let salLeyendo = false;
+        let salStream = null;
+
+        function salDiagnostico() {
+            return [
+                window.isSecureContext ? 'HTTPS ok' : 'SIN HTTPS',
+                (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) ? 'cámara ok' : 'sin API de cámara',
+                ('BarcodeDetector' in window) ? 'lector ok' : 'SIN lector de códigos',
+            ].join(' · ');
+        }
+
+        // El navegador dice la causa en el NOMBRE de la excepcion, no en su texto.
+        function salMotivoCamara(e) {
+            switch (e && e.name) {
+                case 'NotAllowedError':      return 'Permiso de cámara denegado';
+                case 'NotFoundError':        return 'Este equipo no tiene cámara';
+                case 'NotReadableError':     return 'La cámara está ocupada por otra aplicación';
+                case 'OverconstrainedError': return 'No hay cámara trasera disponible';
+                case 'SecurityError':        return 'El navegador bloqueó la cámara por seguridad';
+                default:                     return 'No se pudo abrir la cámara (' + ((e && e.name) || e) + ')';
+            }
+        }
+
+        async function salArrancarCamara() {
+            if (salStream) return;
+            const video = document.getElementById('sal-cam');
+            salMensaje('Abriendo cámara…');
+
+            // LA CAMARA SE PIDE SIEMPRE, aunque falte el lector: verla encendida separa
+            // "no hay permiso" de "no hay decodificador", que son problemas distintos.
+            //
+            // RESOLUCION ALTA Y ENFOQUE CONTINUO a proposito: un codigo de barras son
+            // rayas finas y con poca resolucion se empastan. Van como `ideal`, asi que
+            // donde el telefono no pueda darlas, entrega lo que tenga en vez de fallar.
+            try {
+                salStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: 'environment',
+                        width:  { ideal: 1920 },
+                        height: { ideal: 1080 },
+                        advanced: [{ focusMode: 'continuous' }],
+                    },
+                });
+                video.srcObject = salStream;
+                await video.play();
+            } catch (e) {
+                salMensaje(salMotivoCamara(e) + '. Escribe la patente. [' + salDiagnostico() + ']');
+                salStream = null;
+                return;
+            }
+
+            if (!('BarcodeDetector' in window)) {
+                salMensaje('La cámara funciona, pero este navegador no trae el lector de códigos. '
+                         + 'Escribe la patente. [' + salDiagnostico() + ']');
+                return;
+            }
+            let detector;
+            try {
+                detector = new BarcodeDetector({ formats: SAL_FORMATOS });
+            } catch (e) {
+                salMensaje('El lector no arrancó: ' + ((e && e.name) || e) + '. Escribe la patente.');
+                return;
+            }
+
+            salLeyendo = true;
+            salMensaje('Apunta al código de barras de la colilla');
+            let fallos = 0;
+            const tick = async () => {
+                if (!salLeyendo) return;
+                try {
+                    const codigos = await detector.detect(video);
+                    if (codigos && codigos.length) {
+                        const txt = codigos[0].rawValue;
+                        salLeyendo = false;
+                        vibrar('pagado');
+                        // La colilla trae 'VQS-PATENTE'; el QR del pase pendiente trae la
+                        // patente pelada. Los dos sirven y cada uno responde lo suyo.
+                        salBuscar(leerColilla(txt) || txt);
+                        return;
+                    }
+                    fallos = 0;
+                } catch (e) {
+                    if (++fallos >= SAL_FALLOS_TOLERADOS) {
+                        salLeyendo = false;
+                        salMensaje('El lector está fallando: ' + ((e && e.name) || e)
+                                 + '. Escribe la patente. [' + salDiagnostico() + ']');
+                        return;
+                    }
+                }
+                requestAnimationFrame(tick);
+            };
+            requestAnimationFrame(tick);
+        }
+
+        function salApagarCamara() {
+            salLeyendo = false;
+            if (salStream) {
+                salStream.getTracks().forEach(function (t) { t.stop(); });
+                salStream = null;
+            }
+            const v = document.getElementById('sal-cam');
+            if (v) v.srcObject = null;
         }
 
         function cerrarSalida() {
             document.getElementById('salida-modal').classList.remove('activo');
             // APAGAR LA CAMARA AL CERRAR, siempre. Si queda encendida se come la bateria
             // del telefono del operador y ademas bloquea la camara para el otro escaner.
-            if (salEscaner) {
-                const e = salEscaner;
-                salEscaner = null;
-                e.stop().then(function () { try { e.clear(); } catch (x) {} }).catch(function () {});
-            }
+            salApagarCamara();
         }
 
         function escanearQR() {
