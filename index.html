@@ -344,6 +344,13 @@
         }
         #sal-estado { color: #8FB7D9; font-size: .85rem; text-align: center; margin: 0 0 4px; min-height: 1.2em; }
         #sal-resultado:not(:empty) { margin-top: 12px; }
+        /* Lo que quedo sin subir. Visible a proposito: una salida perdida en silencio
+           arruina el contador de cupos y nadie se entera hasta el cierre. */
+        #sal-cola {
+            display: none; margin: 0 0 10px; padding: 8px 12px; border-radius: 10px;
+            background: rgba(255,152,0,.12); border: 1px solid rgba(255,152,0,.4);
+            color: #FFB74D; font-size: .82rem; text-align: center; font-weight: 700;
+        }
 
         #salida-modal .sal-o {
             text-align: center; color: rgba(255,255,255,.35);
@@ -808,6 +815,7 @@
 
         <div class="sal-caja"><video id="sal-cam" playsinline muted></video><div class="sal-mira"></div><button id="sal-cambiar-cam" onclick="salSiguienteCamara()" title="Cambiar de cámara">1/1</button></div>
         <p id="sal-estado">Apunta al código de barras de la colilla</p>
+        <div id="sal-cola"></div>
         <div id="sal-resultado"></div>
 
         <div class="sal-o">O TAMBIEN</div>
@@ -815,14 +823,13 @@
                placeholder="escribir la patente" maxlength="10">
 
         <div class="sal-acciones">
-            <button id="btn-marcar-salida" onclick="salBuscarTecleada()">SALIDA</button>
-            <button id="btn-marcar-reingreso" onclick="salBuscarTecleada()">REINGRESO</button>
+            <button id="btn-marcar-salida" onclick="salBuscarTecleada('salida')">SALIDA</button>
+            <button id="btn-marcar-reingreso" onclick="salBuscarTecleada('reingreso')">REINGRESO</button>
         </div>
 
         <div class="sal-aviso">
-            La cámara ya lee, pero <b>todavía no se guarda nada</b>. Esta versión existe
-            para comprobar en terreno que el código se lee bien y que los datos que
-            aparecen son los correctos.
+            Escanear la colilla <b>registra la salida</b>. Sin señal queda en cola y sube
+            sola al volver la conexión. El pase sigue válido: esto no lo cierra ni lo cobra.
         </div>
     </div>
 
@@ -994,6 +1001,8 @@
         }
         window.addEventListener('online',  actualizarConectividad);
         window.addEventListener('offline', actualizarConectividad);
+        // Al volver la senal, lo que quedo en cola sube solo.
+        window.addEventListener('online', function () { salVaciarCola(); });
         actualizarConectividad();
 
         // ─── Contador en vivo (arranca tras autenticar; ver onAuthStateChanged) ───
@@ -1216,9 +1225,19 @@
             } catch (e) { return null; }
         }
 
-        async function salBuscar(patenteCruda) {
+        // `accion` null = solo mirar; 'salida' o 'reingreso' = mirar Y registrar.
+        async function salBuscar(patenteCruda, accion) {
             const patente = String(patenteCruda || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
             if (patente.length < 4) { salMensaje("Patente inválida"); return; }
+
+            // REBOTE: el lector dispara varios cuadros seguidos con el mismo codigo, y dos
+            // operadores pueden escanear la misma colilla. Sin esto, una salida se anota
+            // dos veces y la estadia del auto sale partida en dos.
+            const clave = patente + '|' + (accion || '');
+            if (accion && salEsRebote(clave, salUltimo, Date.now(), SAL_REPETIDO_MS)) {
+                salMensaje('Ya se registró recién');
+                return;
+            }
 
             salMensaje("Buscando " + patente + "…");
             let doc;
@@ -1250,7 +1269,7 @@
                 return;
             }
 
-            // Un pase sin pagar tampoco. Es la misma regla que ya protege la verificación.
+            // Un pase sin pagar tampoco. Misma regla que protege la verificación.
             if (!paseEstaPagado(d)) {
                 vibrar("pendiente");
                 salTarjeta("DEBE PAGAR EN CAJA", "PASE DIARIO PENDIENTE",
@@ -1259,7 +1278,30 @@
                 return;
             }
 
-            // Ya se le dio salida antes (lo escribirá la fase 3; acá sólo se muestra).
+            const dentro = salTiempoDentro(d.fecha, d.hora);
+
+            // ── REINGRESO ──
+            if (accion === 'reingreso') {
+                if (!d.salida_terreno) {
+                    vibrar("pendiente");
+                    salTarjeta("YA ESTÁ ADENTRO", "PASE DIARIO",
+                               [patente, "no tenía salida marcada"],
+                               "linear-gradient(135deg,#546E7A,#37474F)", "#fff");
+                    return;
+                }
+                salUltimo = { clave: clave, t: Date.now() };
+                const r = await salRegistrar(patente, 'reingreso');
+                vibrar("frecuente");
+                salTarjeta("REINGRESO", "PASE DIARIO",
+                           [patente, "volvió " + _hm(new Date()),
+                            r === 'guardada' ? "salida deshecha" : "EN COLA · sin señal"],
+                           "linear-gradient(135deg,#8FB7D9,#5E91BE)", "#062436");
+                return;
+            }
+
+            // ── Ya tenía salida y se vuelve a escanear ──
+            // No se registra otra: se muestra y se ofrece el reingreso. Escanear dos veces
+            // es mucho más probable que un auto que sale dos veces en pocos minutos.
             if (d.salida_terreno) {
                 vibrar("frecuente");
                 salTarjeta("YA SALIÓ", "PASE DIARIO",
@@ -1268,21 +1310,27 @@
                 return;
             }
 
-            const dentro = salTiempoDentro(d.fecha, d.hora);
+            // ── SALIDA ──
+            if (!accion) {          // solo mirar (no se usa hoy, queda por si acaso)
+                salTarjeta("SALIDA", "PASE DIARIO",
+                           [patente, "ESTADÍA: " + (dentro || "—"), "sin registrar"],
+                           "linear-gradient(135deg,#00C853,#00913B)", "#fff");
+                return;
+            }
+
+            salUltimo = { clave: clave, t: Date.now() };
+            const r = await salRegistrar(patente, 'salida');
             vibrar("pagado");
-            // La hora de SALIDA es AHORA: el auto se esta yendo en este momento, y esa es
-            // la hora que la fase 3 va a guardar. La de entrada ya no se muestra — lo que
-            // el operador necesita ver es lo que va a quedar registrado.
             salTarjeta("SALIDA", "PASE DIARIO",
                        [patente,
                         "SALIDA: " + _hm(new Date()),
                         dentro ? "ESTADÍA: " + dentro : null,
-                        "SIN REGISTRO"].filter(Boolean),
+                        r === 'guardada' ? "REGISTRADA" : "EN COLA · sin señal"].filter(Boolean),
                        "linear-gradient(135deg,#00C853,#00913B)", "#fff");
         }
 
-        function salBuscarTecleada() {
-            salBuscar(document.getElementById('sal-patente').value);
+        function salBuscarTecleada(accion) {
+            salBuscar(document.getElementById('sal-patente').value, accion);
         }
 
         // ─── Abrir y cerrar la pantalla ───
@@ -1295,7 +1343,107 @@
             m.classList.add('activo');
             document.getElementById('sal-patente').value = "";
             document.getElementById('sal-resultado').innerHTML = "";
+            salPintarCola();
+            salVaciarCola();
             salArrancarCamara();
+        }
+
+        // ─── REGISTRAR LA SALIDA (fase 3) ───
+        // Se escribe sobre el documento que YA existe en `activos/{patente}`, y NUNCA se
+        // toca `estado`. Un pase que deje de estar 'Activo' desaparece de la recaudacion
+        // del dia —son unos $196.000 diarios— y deja el arqueo con un faltante fantasma.
+        // La salida es un HECHO que se anota al lado, no un cambio de estado.
+        const SAL_COLA = 'vq_cola_salidas';
+        const SAL_REPETIDO_MS = 8000;   // el mismo codigo dos veces seguidas es un rebote
+        let salUltimo = { clave: '', t: 0 };
+
+        // ¿Este registro es un REBOTE del anterior?
+        //
+        // El lector dispara varios cuadros seguidos con el mismo codigo, y ademas dos
+        // operadores pueden escanear la misma colilla con segundos de diferencia. Sin
+        // esto, una salida se anota dos veces y la estadia del auto sale partida en dos.
+        //
+        // Funcion aparte y sin estado propio para poder probarla: es una regla de datos y
+        // equivocarse aca ensucia el historial sin que nadie lo note hasta el analisis.
+        function salEsRebote(clave, ultimo, ahora, ventanaMs) {
+            if (!clave || !ultimo || !ultimo.clave) return false;
+            if (clave !== ultimo.clave) return false;      // otra patente u otra accion
+            return (ahora - ultimo.t) < ventanaMs;
+        }
+
+        function salLeerCola() {
+            try { return JSON.parse(localStorage.getItem(SAL_COLA) || '[]'); } catch (e) { return []; }
+        }
+        function salGuardarCola(c) {
+            try { localStorage.setItem(SAL_COLA, JSON.stringify(c)); } catch (e) {}
+            salPintarCola();
+        }
+        function salPintarCola() {
+            const n = salLeerCola().length;
+            const e = document.getElementById('sal-cola');
+            if (e) {
+                e.textContent = n ? (n + (n === 1 ? ' salida sin subir' : ' salidas sin subir')) : '';
+                e.style.display = n ? 'block' : 'none';
+            }
+        }
+
+        // El movimiento, ya armado. El `id` lo hace unico: si la cola reintenta, Firestore
+        // ve el MISMO objeto y `arrayUnion` no lo agrega dos veces. La proteccion contra
+        // duplicados no depende de que la red se porte bien.
+        function salMovimiento(patente, tipo) {
+            const ahora = new Date();
+            return {
+                id: patente + '-' + tipo + '-' + ahora.getTime(),
+                patente: patente,
+                tipo: tipo,
+                hora: _hm(ahora),
+                fecha: fechaDeHoy(),
+                ts: ahora.getTime(),
+                operador: usuarioActual || '',
+            };
+        }
+
+        async function salSubir(mov) {
+            const FV = firebase.firestore.FieldValue;
+            await db.collection('activos').doc(mov.patente).update({
+                movimientos_terreno: FV.arrayUnion(mov),
+                // Copia plana del estado actual, para que la caja y el contador de cupos
+                // no tengan que recorrer el historial en cada lectura.
+                salida_terreno: mov.tipo === 'salida' ? mov.hora : null,
+                dentro: mov.tipo !== 'salida',
+            });
+        }
+
+        // Sube lo que quedo pendiente. Se llama al abrir la pantalla, al volver la senal y
+        // despues de cada registro. En ORDEN: una salida y su reingreso no pueden llegar al
+        // reves o el auto quedaria marcado como afuera cuando esta adentro.
+        async function salVaciarCola() {
+            let cola = salLeerCola();
+            if (!cola.length || !navigator.onLine) return;
+            while (cola.length) {
+                try {
+                    await salSubir(cola[0]);
+                } catch (e) {
+                    return;                       // sigue sin poder: se reintenta despues
+                }
+                cola = cola.slice(1);
+                salGuardarCola(cola);
+            }
+        }
+
+        async function salRegistrar(patente, tipo) {
+            const mov = salMovimiento(patente, tipo);
+            try {
+                await salVaciarCola();            // primero lo viejo, para no desordenar
+                if (salLeerCola().length) throw new Error('cola pendiente');
+                await salSubir(mov);
+                return 'guardada';
+            } catch (e) {
+                const cola = salLeerCola();
+                cola.push(mov);
+                salGuardarCola(cola);
+                return 'en cola';
+            }
         }
 
         // ─── QUE CAMARA USAR ───
@@ -1499,7 +1647,7 @@
                         vibrar('pagado');
                         // La colilla trae 'VQS-PATENTE'; el QR del pase pendiente trae la
                         // patente pelada. Los dos sirven y cada uno responde lo suyo.
-                        salBuscar(leerColilla(txt) || txt);
+                        salBuscar(leerColilla(txt) || txt, 'salida');
                         return;
                     }
                     fallos = 0;

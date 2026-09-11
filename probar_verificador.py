@@ -25,7 +25,7 @@ FUENTE = os.path.join(AQUI, "index.html")
 
 # Las funciones que se recortan del index.html para probarlas aisladas.
 FUNCIONES = ("paseEstaPagado", "fechaDeHoy", "leerColilla",
-             "salMejorCamara", "salNombreCamara")
+             "salMejorCamara", "salNombreCamara", "salEsRebote")
 
 # Constantes de una linea que esas funciones necesitan. Se recortan igual que las
 # funciones: la gracia de este arnes es probar el codigo REAL, y una constante copiada a
@@ -123,6 +123,28 @@ iguala('un nombre descriptivo se muestra tal cual',
 iguala('sin etiqueta, numera por posicion',
        salNombreCamara({label:''}, 1), 'Cámara 2');
 
+// ---- salEsRebote: que una salida no se anote dos veces ----
+// El lector dispara varios cuadros seguidos con el MISMO codigo, y dos operadores pueden
+// escanear la misma colilla. Una salida duplicada parte la estadia del auto en dos y
+// ensucia el dato sin que nadie lo note hasta el analisis.
+iguala('el mismo codigo al instante es rebote',
+       salEsRebote('AABB05|salida', { clave: 'AABB05|salida', t: 1000 }, 1500, 8000), true);
+iguala('pasada la ventana ya no lo es',
+       salEsRebote('AABB05|salida', { clave: 'AABB05|salida', t: 1000 }, 9500, 8000), false);
+iguala('justo en el borde NO es rebote',
+       salEsRebote('AABB05|salida', { clave: 'AABB05|salida', t: 1000 }, 9000, 8000), false);
+
+// Otra patente, u otra accion sobre la misma patente, nunca son rebote.
+iguala('otra patente no es rebote',
+       salEsRebote('CCDD11|salida', { clave: 'AABB05|salida', t: 1000 }, 1500, 8000), false);
+iguala('un REINGRESO justo despues de la salida NO es rebote',
+       salEsRebote('AABB05|reingreso', { clave: 'AABB05|salida', t: 1000 }, 1500, 8000), false);
+
+// Sin nada previo, el primero siempre pasa.
+iguala('el primer registro nunca es rebote',
+       salEsRebote('AABB05|salida', { clave: '', t: 0 }, 1500, 8000), false);
+iguala('sin memoria previa tampoco', salEsRebote('AABB05|salida', null, 1500, 8000), false);
+
 // ---- fechaDeHoy: tiene que hablar el idioma de la caja ----
 // La caja escribe con strftime('%d-%m-%Y'). Si aca saliera '2026-08-30' o '30/08/2026',
 // el filtro de "ultimas salidas" no encontraria NADA y el listado quedaria siempre vacio.
@@ -200,6 +222,15 @@ def main():
     # que abre la pantalla, y a la tercera deja de usar el escaner.
     if "SAL_CAMARA_GUARDADA" not in fuente or "localStorage.setItem(SAL_CAMARA_GUARDADA" not in fuente:
         raise SystemExit("*** la camara elegida ya no se guarda")
+    # El antidoble tiene que seguir en el camino, y la cola tiene que seguir existiendo:
+    # sin senal, una salida perdida en silencio arruina el contador de cupos del dia.
+    if "salEsRebote(clave, salUltimo" not in fuente:
+        raise SystemExit("*** el registro ya no comprueba el rebote")
+    if "salVaciarCola" not in fuente or "SAL_COLA" not in fuente:
+        raise SystemExit("*** desaparecio la cola de salidas sin senal")
+    # Y la regla de oro: la salida NO puede tocar el estado del pase.
+    if "estado:" in fuente.split("async function salSubir")[1].split("}")[0]:
+        raise SystemExit("*** la salida esta tocando `estado` — eso borra la recaudacion del dia")
 
     pagina = (PAGINA
               .replace("__FUNCIONES__",
