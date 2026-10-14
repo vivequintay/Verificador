@@ -364,11 +364,23 @@
             flex-direction: column;
             justify-content: space-between;
         }
+        /* QUE NUNCA HAYA QUE BAJAR PARA LLEGAR A SALIDA. El contenido mínimo medía
+           701px y un A56 con la barra del navegador queda justo por debajo: SALIDA caía
+           fuera por unos pocos píxeles. Dos cosas lo arreglan.
+           Primero, los huecos entre las tres acciones son la mitad de lo que eran.
+           Y segundo, `min-height: 0` les devuelve la capacidad de ENCOGERSE: por defecto
+           un elemento flex no baja de su contenido, así que en una pantalla corta el
+           sobrante se iba en scroll en vez de repartirse. Ahora se comprimen hasta su
+           piso —el que deja el botón todavía legible— y recién ahí aparecería el scroll. */
         @media (min-height: 700px) {
-            #verificar-manual { margin-top: 30px; flex: 6 1 auto; max-height: 180px; }
-            .fila-dos         { margin-top: 26px; flex: 3 1 auto; max-height: 140px; }
-            #btn-salida       { margin-top: 26px; flex: 1 1 auto; max-height: 78px; }
+            #verificar-manual { margin-top: 16px; flex: 6 1 auto; max-height: 180px; }
+            .fila-dos         { margin-top: 13px; flex: 3 1 auto; max-height: 140px; }
+            #btn-salida       { margin-top: 13px; flex: 1 1 auto; max-height: 78px; }
         }
+        #acciones > * { min-height: 0; }
+        #verificar-manual { min-height: 84px; }
+        .fila-dos button  { min-height: 76px; }
+        #btn-salida       { min-height: 42px; }
 
         /* ─── PANTALLA DE SALIDA ───
            Sigue el patron `.rmodal` de la casa (mismo fondo navy, misma cabecera, misma
@@ -458,7 +470,11 @@
         /* ─── Panel Admin (Fase 2) — visible solo para rol administrador ─── */
         .solo-admin { display: none; }
         body.es-admin .solo-admin { display: block; }
-        #btn-panel { background: linear-gradient(135deg, #5C6BC0, #3949AB); color: #fff; margin-top: 10px; font-size: 1.4rem; padding: 14px; }
+        /* COMPACTOS. Son accesos secundarios —se tocan una vez al día— y a 1,4rem con 14px
+           ocupaban tanto como SALIDA entre los dos, empujando la botonera fuera de la
+           pantalla en cuanto entra un administrador. */
+        #btn-panel, #btn-pases { font-size: 1rem; padding: 9px; margin-top: 8px; }
+        #btn-panel { background: linear-gradient(135deg, #5C6BC0, #3949AB); color: #fff; }
         .pnl-card { background: #0D3B5C; border-radius: 16px; padding: 18px; margin-bottom: 14px; }
         .pnl-label { color: #8FB7D9; font-size: .78rem; font-weight: 800; letter-spacing: 2px; }
         .pnl-big { color: #fff; font-size: 3rem; font-weight: 900; line-height: 1.05; }
@@ -487,7 +503,7 @@
         .pnl-line .l { color: #dceaf6; font-variant-numeric: tabular-nums; }
         .pnl-line .r { color: #8FB7D9; font-weight: 700; }
         /* ─── Reimprimir Pases (Fase 3) ─── */
-        #btn-pases { background: linear-gradient(135deg, #3949AB, #283593); color: #fff; margin-top: 10px; font-size: 1.4rem; padding: 14px; }
+        #btn-pases { background: linear-gradient(135deg, #3949AB, #283593); color: #fff; }
         .pnl-controls { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; flex-wrap: wrap; }
         .pnl-controls .chk-all { display: flex; align-items: center; gap: 6px; color: #8FB7D9; font-size: .9rem; font-weight: 700; cursor: pointer; }
         .pnl-controls .chk-all input { width: 20px; height: 20px; accent-color: #5C6BC0; }
