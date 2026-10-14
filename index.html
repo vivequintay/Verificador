@@ -198,11 +198,12 @@
             transform: scale(0.97);
             box-shadow: 0 2px 8px rgba(0,0,0,0.2);
         }
+        /* +25%. Es el botón que más se toca y había alto de sobra en el A56. */
         #verificar-manual {
             background: #2196F3;
             color: white;
-            padding: 20px;
-            font-size: 2.4rem;
+            padding: 25px;
+            font-size: 3rem;
             margin-top: 15px;
         }
         #btn-limpiar {
@@ -273,8 +274,8 @@
         #btn-salida {
             background: linear-gradient(135deg, #E53935, #C62828);
             color: white;
-            padding: 10px;
-            font-size: 1.2rem;
+            padding: 10.5px;
+            font-size: 1.26rem;
             letter-spacing: 4px;
             margin-top: 10px;
         }
@@ -323,16 +324,50 @@
             background: rgba(10,47,79,0.02);
         }
 
-        /* ─── AIRE ENTRE LOS BOTONES, SOLO SI SOBRA ALTO ───
-           En el A56 quedaban 152px muertos abajo y la botonera se veia apretada arriba;
-           en un telefono de 360 el contenido YA se pasa 123px. Un numero fijo arregla uno
-           y rompe el otro, asi que el aire extra se da por ALTO DE PANTALLA: donde sobra,
-           la botonera respira; donde falta, queda compacta como estaba. */
+        /* ─── EL ALTO SOBRANTE SE REPARTE, NO SE ACUMULA ABAJO ───
+           Antes el aire extra eran MÁRGENES FIJOS (42/38/38px) a partir de 700px de alto.
+           En el A56 alcanzaba; en una tablet sobran los mismos 42px y todo lo demás queda
+           amontonado arriba, con media pantalla vacía debajo de SALIDA. Un número fijo no
+           puede servir para dos pantallas de alturas muy distintas.
+           Ahora la página ocupa el alto completo y lo que sobra se reparte ENTRE los
+           botones, en proporción a lo que cada uno se usa: VERIFICAR es el que más crece
+           porque es el que más se toca; SALIDA, que es una consulta, crece poco.
+           Donde no sobra nada (un teléfono chico) nadie crece y queda compacto, que es
+           exactamente como estaba. */
+        html { height: 100%; }
+        body {
+            min-height: 100vh;
+            min-height: 100dvh;      /* dvh descuenta la barra del navegador en el móvil */
+            display: flex;
+            flex-direction: column;
+        }
+        /* La botonera es la que se estira: los botones cuelgan de ella, no de `body`.
+           Apuntarle a `body` no servía de nada — sus hijos en flujo son sólo tres
+           bloques, y el reparto se quedaba en ellos sin llegar nunca a los botones. */
+        #botonera {
+            flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 0 !important;
+        }
+        /* CON TOPE. Sin él, en una tablet VERIFICAR se estiraba a 370px y quedaba una
+           plancha azul con el texto flotando al medio: el hueco dejaba de estar abajo pero
+           seguía estando, ahora dentro del botón. Cada uno crece hasta donde todavía se ve
+           como un botón, y el resto se reparte como aire entre ellos (`space-between`). */
+        /* LAS TRES ACCIONES, EN SU PROPIO BLOQUE. El sobrante se repartía entre TODO,
+           así que el buscador y LIMPIAR —que se leen como una sola cosa— quedaban
+           separados por cien píxeles en una tablet. Arriba va lo que se mira una vez;
+           acá abajo lo que se toca a cada rato, y es esto lo que se estira. */
+        #acciones {
+            flex: 1 1 auto;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
         @media (min-height: 700px) {
-            #verificar-manual { margin-top: 42px; }
-            .fila-dos         { margin-top: 38px; }
-            #btn-salida       { margin-top: 38px; }
-            #zona-avisos      { margin-top: 40px; }
+            #verificar-manual { margin-top: 30px; flex: 6 1 auto; max-height: 180px; }
+            .fila-dos         { margin-top: 26px; flex: 3 1 auto; max-height: 140px; }
+            #btn-salida       { margin-top: 26px; flex: 1 1 auto; max-height: 78px; }
         }
 
         /* ─── PANTALLA DE SALIDA ───
@@ -853,7 +888,7 @@
     </div>
 
     <!-- Acciones principales -->
-    <div style="margin-bottom:20px;">
+    <div id="botonera" style="margin-bottom:20px;">
         <div class="autocomplete-container" style="margin-bottom:20px;">
             <div class="input-wrapper">
                 <input type="text" id="inputPatente" placeholder="BUSCAR PATENTE" autocomplete="off" />
@@ -867,12 +902,14 @@
         </div>
 
         <button id="btn-limpiar" onclick="limpiar()">LIMPIAR</button>
+        <div id="acciones">
         <button id="verificar-manual" onclick="verificarPatente()">VERIFICAR</button>
         <div class="fila-dos">
             <button id="btn-total-pendientes" onclick="verTotalPendientes()">PENDIENTES</button>
             <button id="btn-ultimas-salidas" onclick="verUltimasSalidas()">ÚLT. SALIDAS</button>
         </div>
         <button id="btn-salida" onclick="abrirSalida()">SALIDA</button>
+        </div>
         <button id="btn-panel" class="solo-admin" onclick="abrirPanel()">PANEL ADMIN</button>
         <button id="btn-pases" class="solo-admin" onclick="abrirPases()">REIMPRIMIR PASES</button>
 
