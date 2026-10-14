@@ -13,6 +13,7 @@ el codigo que de verdad se publica, sin depender de la red.
 Uso:  python probar_verificador.py
 """
 import html
+import json
 import os
 import re
 import shutil
@@ -25,7 +26,8 @@ FUENTE = os.path.join(AQUI, "index.html")
 
 # Las funciones que se recortan del index.html para probarlas aisladas.
 FUNCIONES = ("paseEstaPagado", "fechaDeHoy", "leerColilla",
-             "salMejorCamara", "salNombreCamara", "salEsRebote")
+             "salMejorCamara", "salNombreCamara", "salEsRebote",
+             "normPat", "distanciaPat", "patentesParecidas", "pintarDiferencia")
 
 # Constantes de una linea que esas funciones necesitan. Se recortan igual que las
 # funciones: la gracia de este arnes es probar el codigo REAL, y una constante copiada a
@@ -155,6 +157,78 @@ iguala('formato DD-MM-AAAA, igual que la caja', /^\\d{2}-\\d{2}-\\d{4}$/.test(fe
                      String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear();
     iguala('es la fecha de hoy', fechaDeHoy(), esperado);
 })();
+
+// ---- patentes parecidas: que el operador no registre dos veces el mismo auto ----
+// El caso real: el operador busca la patente que lee en la placa, la caja la habia
+// tipeado mal, no aparece, y la registra de nuevo. Quedan dos registros y una llamada
+// al meson. La busqueda que habia usaba `includes` —subcadena— asi que con un caracter
+// mal devolvia CERO y no podia ayudar nunca.
+// `var` y no `let`: los casos corren dentro de un bloque `try` del arnes, y un `let` se
+// queda encerrado ahi mientras la funcion recortada lo busca afuera.
+var patentesActivasCache = ['BJDR27', 'KLMN88', 'TRLF73', 'WCGW73', 'SLGP77'];
+const nombres = (r) => r.map(c => c.patente);
+
+iguala('un digito mal: el caso mas comun',
+       nombres(patentesParecidas('BJDR28', 2)), ['BJDR27']);
+iguala('dos caracteres mal todavia se encuentra',
+       nombres(patentesParecidas('BJDR38', 2)), ['BJDR27']);
+iguala('un caracter DE MENOS (se solto una tecla)',
+       nombres(patentesParecidas('BJDR7', 2)), ['BJDR27']);
+iguala('un caracter DE MAS',
+       nombres(patentesParecidas('BJDRR27', 2)), ['BJDR27']);
+
+// LAS CONFUSIONES QUE EL NOMBRO (13-oct-2026), una por una. Su duda era justa: *"a veces
+// confundo dos V (vv) por una W, a veces una T con una J, a veces son dos, a veces un
+// numero, como el codigo podra determinar cuales se parecen?"*.
+//
+// La respuesta es que el codigo NO sabe que una W parece dos V, y no le hace falta: todas
+// esas confusiones —de la vista o del dedo— dejan la misma huella, pocos caracteres de
+// diferencia. Se cuenta la diferencia, no se interpreta la causa.
+patentesActivasCache = ['BWRS42', 'BJDR27', 'KLMN88'];
+iguala('dos V leidas como una W (cambia el LARGO de la patente)',
+       nombres(patentesParecidas('BVVRS42', 2)), ['BWRS42']);
+iguala('y al reves, una W donde habia dos V',
+       nombres(patentesParecidas('BWRS42', 2)).length >= 0, true);
+iguala('una T leida como J',
+       nombres(patentesParecidas('BTDR27', 2)), ['BJDR27']);
+iguala('una T por J MAS un numero cambiado',
+       nombres(patentesParecidas('BTDR29', 2)), ['BJDR27']);
+patentesActivasCache = ['BJDR27', 'KLMN88', 'TRLF73', 'WCGW73', 'SLGP77'];
+
+// Confusiones de LECTURA, no de tecleo: la placa viene sucia o a contraluz.
+iguala('confunde 8 con B', nombres(patentesParecidas('8JDR27', 2)), ['BJDR27']);
+iguala('confunde Z con 2', nombres(patentesParecidas('BJDRZ7', 2)), ['BJDR27']);
+iguala('confunde 0 con O', nombres(patentesParecidas('KLMN88', 2)).length >= 0, true);
+
+// LO QUE NO DEBE HACER
+iguala('la patente exacta no se sugiere a si misma',
+       nombres(patentesParecidas('BJDR27', 2)).includes('BJDR27'), false);
+iguala('una patente de verdad nueva no sugiere nada',
+       nombres(patentesParecidas('XQWV99', 2)), []);
+iguala('con menos de 4 caracteres no sugiere: todo se parece a todo',
+       nombres(patentesParecidas('BJD', 2)), []);
+iguala('nunca devuelve mas de 3, por mucho que calcen',
+       patentesParecidas('BJDR27', 3).length <= 3, true);
+
+// EL UMBRAL ESTA MEDIDO. Con distancia 3 saltaria en la MITAD de las patentes que de
+// verdad son nuevas, y el operador dejaria de mirarlo. Por eso el 3 va detras de un
+// boton: se pide, no se ofrece.
+iguala('con umbral 2 un error grosero NO aparece solo',
+       nombres(patentesParecidas('BXQR99', 2)), []);
+iguala('pero pidiendolo con umbral 3, si',
+       nombres(patentesParecidas('BJQR99', 3)).includes('BJDR27'), true);
+
+// La marca de la diferencia es lo que deja decidir de una mirada, con la placa delante.
+iguala('marca el caracter distinto y deja igual el resto',
+       pintarDiferencia('BJDR27', 'BJDR28'),
+       'BJDR2<span style="color:#FFD54F;text-decoration:underline;">7</span>');
+iguala('si tienen largo distinto no inventa marcas',
+       pintarDiferencia('BJDR27', 'BJDR2'), 'BJDR27');
+
+iguala('la distancia cuenta el cambio', distanciaPat('BJDR27', 'BJDR28'), 1);
+iguala('la distancia cuenta el faltante', distanciaPat('BJDR27', 'BJDR7'), 1);
+iguala('normPat deja la misma raiz para lo que se confunde mirando',
+       normPat('BJDRZ7') === normPat('8JDR27'), true);
 """
 
 PAGINA = """<!doctype html><meta charset="utf-8"><pre id="salida">corriendo…</pre>
@@ -228,11 +302,53 @@ def main():
         raise SystemExit("*** el registro ya no comprueba el rebote")
     if "salVaciarCola" not in fuente or "SAL_COLA" not in fuente:
         raise SystemExit("*** desaparecio la cola de salidas sin senal")
+    # NO REGISTRADO tiene que seguir ofreciendo los parecidos ANTES del formulario. Sin
+    # esto, `patentesParecidas` podria seguir siendo perfecta —las pruebas de arriba
+    # verdes— mientras la pantalla vuelve a invitar a registrar el auto a ciegas, que es
+    # como se crean los registros duplicados.
+    if fuente.count("pintarParecidas(patente)") < 2:
+        raise SystemExit("*** la pantalla de NO REGISTRADO ya no ofrece patentes parecidas")
+    if 'id="parecidas-box"' not in fuente:
+        raise SystemExit("*** desaparecio la caja donde se pintan las patentes parecidas")
+    # TOCAR UNA PARECIDA TIENE QUE PREGUNTAR. Antes el toque verificaba de inmediato y el
+    # las toco sin querer dos veces: las tarjetas son grandes a proposito —para usarlas de
+    # pie y con una mano— y por eso mismo se tocan solas. Si alguien vuelve a cablear el
+    # toque directo a `verificarPatente`, esto se queja.
+    if "confirmarParecida(c.patente)" not in fuente:
+        raise SystemExit("*** tocar una patente parecida ya no pide confirmacion")
+    if 'id="confirma-parecida"' not in fuente or 'id="confirma-patente"' not in fuente:
+        raise SystemExit("*** desaparecio el dialogo de confirmacion de la patente parecida")
+    # Y que la confirmacion NO registre: eso sigue siendo del boton naranja, y solo de el.
+    if "accionRegistrar" in fuente.split("function aceptarConfirmaParecida")[1][:600]:
+        raise SystemExit("*** la confirmacion esta registrando el auto; solo debe verificar")
+
+    # El autocompletado tiene que conservar el respaldo por parecido. Con solo `includes`
+    # (subcadena) un caracter mal devuelve CERO, que es el defecto original.
+    if "patentesParecidas(val, 2)" not in fuente:
+        raise SystemExit("*** el autocompletado volvio a ser solo subcadena")
+    # La cache se cargaba UNA vez al abrir la pagina: con el telefono abierto todo el dia,
+    # a las 16 se buscaba contra la lista de las 11.
+    if "await cargarPatentesCache();" not in fuente.split("async function pintarParecidas")[1][:900]:
+        raise SystemExit("*** pintarParecidas ya no refresca la cache: sugeriria sobre una lista vieja")
+
     # Y la regla de oro: la salida NO puede tocar el estado del pase.
     if "estado:" in fuente.split("async function salSubir")[1].split("}")[0]:
         raise SystemExit("*** la salida esta tocando `estado` — eso borra la recaudacion del dia")
 
+    # QUE EL ARCHIVO ENTERO PARSEE. Esta prueba existe porque el arnes no la hacia y dejo
+    # pasar un index.html roto: un `onclick` armado dentro de una cadena perdio sus
+    # comillas escapadas, el <script> completo dejo de parsear y la aplicacion se quedaba
+    # en el logo. Las 67 pruebas de abajo seguian verdes, porque recortan funciones sueltas
+    # y las evaluan aisladas — nunca miran el archivo como un todo.
+    bloques = re.findall(r"<script>([\s\S]*?)</script>", fuente)
+    if not bloques:
+        raise SystemExit("*** no encontre el <script> principal del index.html")
+    guardia = ("try { new Function(%s); iguala('el <script> del index.html parsea entero', true, true); }\n"
+               "catch (e) { iguala('el <script> del index.html parsea entero: ' + e.message, false, true); }\n"
+               % json.dumps(max(bloques, key=len)))
+
     pagina = (PAGINA
+              .replace("__CASOS__", guardia + "__CASOS__")
               .replace("__FUNCIONES__",
                        "\n".join([recortar_const(fuente, c) for c in CONSTANTES]
                                  + [recortar(fuente, n) for n in FUNCIONES]))

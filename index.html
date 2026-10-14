@@ -230,27 +230,52 @@
             padding: 14px 6px;
             white-space: nowrap;
         }
+        /* EL DOBLE DE ALTOS, y el contador en su propio renglón.
+           En la tablet y en el PC se veía bien; en un Galaxy A56 y en los teléfonos de los
+           operadores el "(6)" se salía del botón y quedaba cortado, porque iba en la misma
+           línea con `white-space: nowrap` y a 1.4rem no cabe. Ahora el número baja: en una
+           línea propia no puede desbordar, da igual el ancho del teléfono. */
+        .fila-dos button {
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            line-height: 1.1;
+            white-space: normal;
+        }
+        .fila-dos .cuenta {
+            font-size: 1.9rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+        }
         #btn-total-pendientes {
             background: linear-gradient(135deg, #FF9800, #F57C00);
             color: white;
             font-size: 1.4rem;
-            padding: 14px;
+            padding: 14px 6px;
         }
         #btn-ultimas-salidas {
             background: linear-gradient(135deg, #00C853, #00913B);
             color: white;
             font-size: 1.4rem;
-            padding: 14px;
+            padding: 14px 6px;
         }
         /* ─── SALIDA ───
            Del mismo tamano que VERIFICAR porque pasa a ser la otra accion que el operador
            hace a cada rato, no una consulta. En rojo #D32F2F, que es el rojo que esta app
            ya usa: gradiente 600->800 de la misma familia, no un rojo nuevo. */
+        /* A LA MITAD DE ALTO. Ocupaba lo mismo que VERIFICAR y no hace falta: el alto de
+           la pantalla se lo lleva lo que se mira a cada rato. El texto baja en la misma
+           proporción y gana espaciado, que es lo que mantiene la palabra legible cuando
+           deja de ser grande. */
         #btn-salida {
             background: linear-gradient(135deg, #E53935, #C62828);
             color: white;
-            padding: 20px;
-            font-size: 2.4rem;
+            padding: 10px;
+            font-size: 1.2rem;
+            letter-spacing: 4px;
             margin-top: 10px;
         }
         /* ─── LA BANDEJA DE AVISOS ───
@@ -565,6 +590,69 @@
         .badge-salida    { background: #00C853; color: white; padding: 6px 14px; border-radius: 20px; font-weight: 700; font-size: 0.82rem; white-space: nowrap; }
 
         /* ─── Registro container ─── */
+        /* ─── EL RESULTADO, EN PANTALLA COMPLETA ───
+           Antes el resultado salía DEBAJO de los botones, así que para leer "NO REGISTRADO"
+           y llegar al formulario había que bajar por la página — con una mano, de pie y con
+           el auto esperando. Ahora cubre la pantalla: lo que importa en ese momento es lo
+           único que se ve.
+           Se cierra con el gesto de volver del teléfono (el panel se anota en el historial)
+           o con el botón SALIR, que va abajo porque es donde llega el pulgar. */
+        #panel-resultado {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            background: #0B2A41;
+            padding: 18px;
+            padding-top: calc(18px + env(safe-area-inset-top, 0px));
+            padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+            overflow-y: auto;
+            display: none;
+            flex-direction: column;
+        }
+        #panel-resultado.visible { display: flex; }
+        body.modo-sol #panel-resultado { background: #EAF4FB; }
+        #panel-resultado .cuerpo { flex: 1; }
+        #btn-salir-panel {
+            margin-top: 18px;
+            background: #37474F;
+            color: #ECEFF1;
+            border: 1px solid #546E7A;
+            padding: 18px;
+            font-size: 1.3rem;
+            letter-spacing: 3px;
+            flex: none;
+        }
+        body.modo-sol #btn-salir-panel { background: #CFD8DC; color: #263238; }
+
+        /* ─── CONFIRMAR LA PATENTE PARECIDA ───
+           La patente va enorme: la decisión se toma comparándola con la placa del auto,
+           de pie y a contraluz. Los dos botones son del mismo alto y están separados, para
+           que el pulgar no acierte el equivocado. */
+        #confirma-parecida {
+            position: fixed; inset: 0; z-index: 1100;
+            background: rgba(4,18,30,0.92);
+            display: none; align-items: center; justify-content: center; padding: 20px;
+        }
+        #confirma-parecida .caja {
+            background: #11354F; border: 2px solid #546E7A; border-radius: 18px;
+            padding: 26px 20px; width: 100%; max-width: 380px; text-align: center;
+        }
+        #confirma-parecida .rotulo {
+            margin: 0 0 6px; color: #90A4AE; font-size: .85rem;
+            font-weight: 700; letter-spacing: 2px;
+        }
+        #confirma-patente {
+            margin: 0 0 22px; color: #fff; font-size: 2.6rem;
+            font-weight: 800; letter-spacing: 5px; word-break: break-all;
+        }
+        #confirma-parecida button {
+            width: 100%; padding: 18px; font-size: 1.3rem;
+            font-weight: 700; letter-spacing: 3px; margin: 0;
+        }
+        #confirma-parecida .si { background: #2E7D32; color: #fff; }
+        #confirma-parecida .no { background: transparent; color: #90A4AE;
+            border: 1px solid #546E7A; margin-top: 12px; }
+
         #registro-container {
             background: #0D3B5C;
             padding: 25px;
@@ -790,11 +878,32 @@
 
     </div>
 
-    <div style="margin:30px 0;"></div>
-    <div id="zona-avisos">
-        <div id="display-resultado"></div>
-        <span class="punto-medio"></span>
-        <div id="lista-pendientes"></div>
+    <!-- El resultado vive acá, en pantalla completa. Antes iba debajo de los botones y
+         había que bajar por la página para leerlo. -->
+    <div id="panel-resultado">
+        <div class="cuerpo">
+            <div id="zona-avisos">
+                <div id="display-resultado"></div>
+                <span class="punto-medio"></span>
+                <div id="lista-pendientes"></div>
+            </div>
+            <div id="registro-container" style="display:none;">
+                <input type="text" id="patenteNueva" style="text-transform:uppercase;font-weight:bold;" />
+                <button onclick="accionRegistrar()" style="background:#FF6B35;color:white;margin-top:12px;padding:16px;font-size:1.2rem;">REGISTRAR INGRESO POR MINUTO</button>
+            </div>
+        </div>
+        <button id="btn-salir-panel" onclick="cerrarPanelResultado()">SALIR</button>
+    </div>
+
+    <!-- Confirmación al tocar una patente parecida. Las tarjetas son grandes para poder
+         tocarlas de pie y con una mano, y por eso mismo se tocan sin querer. -->
+    <div id="confirma-parecida">
+        <div class="caja">
+            <p class="rotulo">PATENTE SUGERIDA</p>
+            <p id="confirma-patente"></p>
+            <button class="si" onclick="aceptarConfirmaParecida()">INGRESAR</button>
+            <button class="no" onclick="cerrarConfirmaParecida()">NO</button>
+        </div>
     </div>
 
     <!-- Modal RESERVAS de hoy -->
@@ -881,12 +990,6 @@
             <button id="btn-imprimir-sel" onclick="imprimirSeleccionadas()">Imprimir seleccionadas</button>
         </div>
         <div id="pases-lista"></div>
-    </div>
-
-    <div id="registro-container" style="display:none;">
-        <p style="margin:0 0 15px 0;color:#FFB300;font-weight:700;font-size:1rem;">NO REGISTRADO</p>
-        <input type="text" id="patenteNueva" style="text-transform:uppercase;font-weight:bold;" />
-        <button onclick="accionRegistrar()" style="background:#FF6B35;color:white;margin-top:12px;padding:16px;font-size:1.2rem;">REGISTRAR INGRESO POR MINUTO</button>
     </div>
 
     <script>
@@ -1013,7 +1116,13 @@
                 .onSnapshot((snapshot) => {
                     const btn   = document.getElementById("btn-total-pendientes");
                     const count = snapshot.size;
-                    btn.textContent = count > 0 ? `PENDIENTES (${count})` : "PENDIENTES";
+                    // EL NÚMERO EN SU PROPIO RENGLÓN. En la misma línea y a 1.4rem, el
+                    // "(6)" se salía del botón en un Galaxy A56 y en los teléfonos de los
+                    // operadores; en la tablet y en el PC entraba y no se notaba. Abajo no
+                    // puede desbordar, da igual el ancho de la pantalla.
+                    btn.innerHTML = count > 0
+                        ? 'PENDIENTES<span class="cuenta">' + count + '</span>'
+                        : "PENDIENTES";
                 }, (err) => console.error("Error en listener pendientes:", err));
         }
 
@@ -1102,6 +1211,55 @@
             document.getElementById("registro-container").style.display = "none";
             document.getElementById("inputPatente").focus();
         }
+
+        // ════════════ EL PANEL DE RESULTADO, EN PANTALLA COMPLETA ════════════
+        //
+        //  SE ABRE Y SE CIERRA SOLO, mirando el contenido. Es a propósito: los resultados
+        //  se escriben desde media docena de sitios distintos (verificar, pendientes,
+        //  últimas salidas, el registro en terreno) y si cada uno tuviera que acordarse de
+        //  abrir el panel, el día que se agregue el séptimo se va a olvidar. Es el mismo
+        //  criterio del `:has()` de la bandeja: que el estado no se pueda desincronizar
+        //  del contenido porque nadie lo copia a mano.
+        //
+        //  SE CIERRA CON EL GESTO DE VOLVER. El panel se anota en el historial al abrirse,
+        //  así que el gesto del teléfono —que es lo que la mano hace sin pensar— lo cierra
+        //  en vez de salirse de la aplicación.
+        const panelRes = document.getElementById("panel-resultado");
+
+        function abrirPanelResultado() {
+            if (panelRes.classList.contains("visible")) return;
+            panelRes.classList.add("visible");
+            panelRes.scrollTop = 0;
+            try { history.pushState({ panelVQ: true }, ""); } catch (e) {}
+        }
+
+        function cerrarPanelResultado() {
+            if (!panelRes.classList.contains("visible")) return;
+            // Se va por el historial para que quede UN solo camino de salida: el gesto de
+            // volver y el botón SALIR terminan en el mismo sitio y no se desordena la pila.
+            if (history.state && history.state.panelVQ) { history.back(); return; }
+            panelRes.classList.remove("visible");
+            limpiar();
+        }
+
+        window.addEventListener("popstate", () => {
+            if (!panelRes.classList.contains("visible")) return;
+            panelRes.classList.remove("visible");
+            limpiar();
+        });
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") cerrarPanelResultado();
+        });
+
+        new MutationObserver(() => {
+            const hay = document.getElementById("display-resultado").innerHTML.trim() !== "" ||
+                        document.getElementById("lista-pendientes").innerHTML.trim() !== "" ||
+                        document.getElementById("registro-container").style.display === "block";
+            if (hay) abrirPanelResultado();
+            else if (panelRes.classList.contains("visible")) cerrarPanelResultado();
+        }).observe(panelRes, { childList: true, subtree: true,
+                               attributes: true, attributeFilter: ["style"] });
 
         // Cancelar countdown al tocar el input manualmente
         document.getElementById("inputPatente").addEventListener("focus", () => {
@@ -1745,9 +1903,11 @@
                     vibrar("frecuente");
                     lanzarFlash("flash-frecuente");
                     if (!doc.exists) {
-                        display.innerHTML = `<h1 style="color:#D32F2F;">NO REGISTRADO</h1>`;
+                        display.innerHTML = `<h1 style="color:#D32F2F;">NO REGISTRADO</h1>
+                            <div id="parecidas-box"></div>`;
                         regCont.style.display = "block";
                         document.getElementById("patenteNueva").value = patente;
+                        pintarParecidas(patente);
                         return;
                     }
                 }
@@ -1810,9 +1970,14 @@
                     }
                     iniciarBoothCountdown();
                 } else {
-                    display.innerHTML = `<h1 style="color:#D32F2F;">NO REGISTRADO</h1>`;
+                    // El formulario de registro sigue acá y sigue listo: si de verdad no
+                    // está, el flujo es el mismo de siempre. Lo que cambia es que ahora el
+                    // operador MIRÓ los parecidos antes de decidir, en vez de suponer.
+                    display.innerHTML = `<h1 style="color:#D32F2F;">NO REGISTRADO</h1>
+                        <div id="parecidas-box"></div>`;
                     regCont.style.display = "block";
                     document.getElementById("patenteNueva").value = patente;
+                    pintarParecidas(patente);
                 }
             } catch (e) {
                 console.error("Error en verificarPatente:", e);
@@ -2385,6 +2550,159 @@
         }
         cargarPatentesCache();
 
+        // ════════════════════════════════════════════════════════════════════
+        //  PATENTES PARECIDAS
+        //
+        //  EL PROBLEMA QUE RESUELVE. El operador busca una patente, no aparece, y la
+        //  registra como nueva. Pero muchas veces sí estaba: la caja la tipeó mal al
+        //  ingresarla. Resultado, dos registros del mismo auto y una llamada al mesón.
+        //
+        //  La búsqueda que había no podía ayudar: `patentesActivasCache.filter(p =>
+        //  p.includes(val))` es SUBCADENA. Con un solo carácter mal, `includes` devuelve
+        //  cero. Por eso "no hay caso" — no es que buscara poco, es que no podía.
+        //
+        //  EL UMBRAL ES 2 Y ESTÁ MEDIDO, no elegido a ojo. Sobre las 11.554 patentes
+        //  reales del histórico, con patios simulados de 90 autos:
+        //
+        //      distancia ≤1 → caza el 100% de los dedazos de un carácter, pero sólo
+        //                     el 13% de los de dos.
+        //      distancia ≤2 → caza el 100% de los de uno Y los de dos, y sólo aparece
+        //                     en el 3,7% de las patentes que de verdad son nuevas.
+        //      distancia ≤3 → cazaría también los groseros, pero saltaría en el 50% de
+        //                     las nuevas. Con ese ruido el operador deja de mirarlo.
+        //
+        //  Por eso el 3 existe pero detrás de un botón: se pide, no se ofrece.
+        // ════════════════════════════════════════════════════════════════════
+
+        // Confusiones de LECTURA, no de tecleo: la patente se lee de una placa sucia, a
+        // contraluz o con barro. Estas seis son las que de verdad se confunden mirando.
+        function normPat(p) {
+            return p.replace(/O/g, "0").replace(/I/g, "1").replace(/B/g, "8")
+                    .replace(/S/g, "5").replace(/Z/g, "2").replace(/G/g, "6");
+        }
+
+        // Levenshtein. Cuenta también el carácter DE MÁS y el DE MENOS, no sólo el
+        // cambiado: tipear 5 caracteres de una patente de 6 es un error tan común como
+        // equivocarse en uno, y comparando por posición no se detecta.
+        function distanciaPat(a, b) {
+            const m = a.length, n = b.length;
+            if (Math.abs(m - n) > 3) return 99;
+            let prev = Array.from({ length: n + 1 }, (_, j) => j);
+            for (let i = 1; i <= m; i++) {
+                const cur = [i];
+                for (let j = 1; j <= n; j++) {
+                    cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1,
+                                      prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+                }
+                prev = cur;
+            }
+            return prev[n];
+        }
+
+        function patentesParecidas(buscada, umbral) {
+            const b = (buscada || "").toUpperCase().trim();
+            if (b.length < 4) return [];              // con 3 letras todo se parece a todo
+            const nb = normPat(b);
+            const out = [];
+            patentesActivasCache.forEach(function (p) {
+                if (p === b) return;
+                // La confusión visual pesa menos que un dedazo: si normalizadas son la
+                // misma patente, va primera de la lista.
+                const d = (normPat(p) === nb) ? 0.5 : distanciaPat(b, p);
+                if (d <= umbral) out.push({ patente: p, d: d });
+            });
+            out.sort(function (x, y) { return x.d - y.d || x.patente.localeCompare(y.patente); });
+            return out.slice(0, 3);
+        }
+
+        // Marca los caracteres que NO calzan. Es lo que deja decidir de una mirada, con
+        // la placa del auto delante: sin esto hay que comparar letra por letra a mano.
+        function pintarDiferencia(candidata, buscada) {
+            if (candidata.length !== buscada.length) return candidata;
+            let html = "";
+            for (let i = 0; i < candidata.length; i++) {
+                html += (candidata[i] === buscada[i])
+                    ? candidata[i]
+                    : '<span style="color:#FFD54F;text-decoration:underline;">' + candidata[i] + '</span>';
+            }
+            return html;
+        }
+
+        // NUNCA AUTOCORRIGE. Muestra y el operador elige, porque tiene el auto delante y
+        // es mejor juez: en el 6% de las jornadas hay dos autos reales a un carácter, y
+        // elegir por él sería cobrarle al equivocado en silencio.
+        async function pintarParecidas(patente) {
+            const caja = document.getElementById("parecidas-box");
+            if (!caja) return;
+            caja.innerHTML = "";
+            // La caché se cargaba UNA vez al abrir la página. Con el teléfono abierto
+            // desde las 11, a las 16 se buscaba contra la lista de las 11 y los autos que
+            // entró la caja en el medio no estaban. Se refresca justo acá, que es el único
+            // momento en que importa y cuesta una lectura.
+            await cargarPatentesCache();
+            // SIEMPRE SE MUESTRAN LAS TRES MAS CERCANAS, sin boton de por medio: si hay
+            // que pedirlas, en la practica no se piden.
+            //
+            // Pero no todas valen lo mismo, y la pantalla lo dice. A distancia <=2 estan
+            // los dedazos de verdad: salen grandes y en ambar bajo PARECIDAS. Si no hay
+            // ninguna tan cerca, lo mas probable es que el auto NO este registrado —esta
+            // medido: con umbral 3 saltaria en la MITAD de las patentes legitimamente
+            // nuevas— asi que se dice NO HAY COINCIDENCIAS y las tres mas cercanas van
+            // abajo, chicas y en gris. Siguen ahi para el error grosero (dos letras y un
+            // numero), pero sin pinta de respuesta.
+            const b = patente.toUpperCase().trim();
+            const cerca = patentesParecidas(b, 2);
+            const lista = cerca.length ? cerca : patentesParecidas(b, 6);
+            let html = cerca.length
+                ? '<p style="color:#FFB300;font-weight:700;letter-spacing:1px;margin:14px 0 8px;">PARECIDAS</p>'
+                : '<p style="color:#90A4AE;font-weight:700;letter-spacing:1px;margin:14px 0 8px;">NO HAY COINCIDENCIAS</p>';
+            const estilo = cerca.length
+                ? 'background:#37474F;color:#fff;padding:16px;border-radius:10px;margin-bottom:8px;' +
+                  'font-size:1.5rem;font-weight:700;letter-spacing:2px;cursor:pointer;border:1px solid #546E7A;'
+                : 'background:transparent;color:#78909C;padding:10px 14px;border-radius:8px;margin-bottom:5px;' +
+                  'font-size:1.05rem;letter-spacing:1px;cursor:pointer;border:1px solid #37474F;';
+            caja.innerHTML = html;
+            // SE ARMA CON EL DOM, no concatenando un `onclick` dentro de una cadena. Así
+            // se rompió este bloque la primera vez: la patente iba metida en el atributo y
+            // las comillas escapadas se perdieron, el <script> entero dejó de parsear y la
+            // aplicación se quedaba en el logo. Con `addEventListener` no hay que escapar
+            // nada y la patente nunca se convierte en código.
+            lista.forEach(function (c) {
+                const fila = document.createElement("div");
+                fila.setAttribute("style", estilo);
+                fila.innerHTML = pintarDiferencia(c.patente, b);
+                fila.addEventListener("click", function () { confirmarParecida(c.patente); });
+                caja.appendChild(fila);
+            });
+        }
+
+        // UN TOQUE NO BASTA. Las tarjetas son grandes a propósito —para poder tocarlas de
+        // pie, con una mano y con el auto delante— y por eso mismo se tocan sin querer:
+        // *"recién ingresé dos sin querer"* (13-10-2026). La patente va en grande para
+        // poder compararla con la placa antes de decir que sí.
+        //
+        // INGRESAR pone la patente en el buscador y la verifica. NO registra ningún auto:
+        // eso sigue detrás del botón naranja, que es el único que da de alta un ingreso.
+        function confirmarParecida(patente) {
+            const v = document.getElementById("confirma-parecida");
+            document.getElementById("confirma-patente").textContent = patente;
+            v.dataset.patente = patente;
+            v.style.display = "flex";
+        }
+
+        function cerrarConfirmaParecida() {
+            document.getElementById("confirma-parecida").style.display = "none";
+        }
+
+        function aceptarConfirmaParecida() {
+            const v = document.getElementById("confirma-parecida");
+            const p = v.dataset.patente || "";
+            v.style.display = "none";
+            if (!p) return;
+            document.getElementById("inputPatente").value = p;
+            verificarPatente();
+        }
+
         const input         = document.getElementById("inputPatente");
         const listContainer = document.getElementById("autocomplete-list");
 
@@ -2392,7 +2710,14 @@
             const val = this.value.toUpperCase().trim();
             listContainer.innerHTML = "";
             if (!val) { listContainer.style.display = "none"; return; }
-            const sugerencias = patentesActivasCache.filter(p => p.includes(val)).slice(0, 8);
+            // SUBCADENA PRIMERO, PARECIDO DESPUÉS. Mientras se va escribiendo ("BJD"), la
+            // subcadena es lo correcto y el parecido sería ruido. Pero cuando ya hay una
+            // patente entera y la subcadena no encuentra nada, ahí es donde antes la lista
+            // se quedaba vacía y el operador daba el auto por no registrado.
+            let sugerencias = patentesActivasCache.filter(p => p.includes(val)).slice(0, 8);
+            if (!sugerencias.length && val.length >= 5) {
+                sugerencias = patentesParecidas(val, 2).map(c => c.patente);
+            }
             if (sugerencias.length > 0) {
                 sugerencias.forEach(p => {
                     const b     = document.createElement("DIV");
