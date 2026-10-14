@@ -40,7 +40,6 @@
         body.modo-sol .autocomplete-items            { background: #d8eaf5; border-color: #0A2F4F; }
         body.modo-sol .autocomplete-items div        { color: #0A2F4F; border-bottom-color: #b8d4e6; }
         body.modo-sol #registro-container            { background: #d8eaf5; }
-        body.modo-sol #btn-limpiar                   { color: rgba(10,47,79,0.4); border-color: rgba(10,47,79,0.18); }
         body.modo-sol #btn-sol                       { background: #FFD54F; color: #5D4037; border-color: #FFC107; }
         body.modo-sol #btn-reservas                  { background: #d8eaf5; color: #0A2F4F; border-color: #b8d4e6; }
 
@@ -206,17 +205,6 @@
             font-size: 3rem;
             margin-top: 15px;
         }
-        #btn-limpiar {
-            background: transparent;
-            color: rgba(255,255,255,0.38);
-            border: 1.5px solid rgba(255,255,255,0.16);
-            padding: 11px;
-            font-size: 0.95rem;
-            letter-spacing: 2px;
-            margin-top: 0;
-            box-shadow: none;
-        }
-        #btn-limpiar:active { background: rgba(255,255,255,0.07); box-shadow: none; }
         /* ─── PENDIENTES y ULT. SALIDAS comparten una fila ───
            El alto de la pantalla se acabo: cada boton nuevo empuja al resto fuera de
            vista en un telefono. Estos dos son CONSULTAS —se miran de vez en cuando, no
@@ -917,7 +905,11 @@
             <div id="autocomplete-list" class="autocomplete-items" style="display:none;"></div>
         </div>
 
-        <button id="btn-limpiar" onclick="limpiar()">LIMPIAR</button>
+        <!-- LIMPIAR se quitó el 14-10-2026. Lo volvió redundante el panel a pantalla
+             completa: su SALIR ya llama a `limpiar()`, que es lo único que hacía el botón.
+             Antes el resultado quedaba debajo de la botonera y hacía falta algo para
+             borrarlo; ahora se borra al cerrar. La FUNCIÓN sigue viva y la usan el
+             temporizador del modo caseta y el cierre del panel. -->
         <div id="acciones">
         <button id="verificar-manual" onclick="verificarPatente()">VERIFICAR</button>
         <div class="fila-dos">
