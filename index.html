@@ -1051,6 +1051,23 @@
         const db = firebase.firestore();
         const auth = firebase.auth();
 
+        // LO QUE SE ANOTA SIN SEÑAL NO SE PIERDE. Con esto Firestore guarda en el teléfono
+        // lo que lee y lo que escribe: sin señal contesta con lo último que vio, y lo que se
+        // registra queda en cola y sube solo al volver, aunque la app se cierre entremedio.
+        // Sin esto la cola vivía en la memoria y se perdía al cerrar la app. Tiene que ir
+        // antes de cualquier lectura, por eso está pegado a `firebase.firestore()`.
+        let persistenciaLocal = false;
+        db.enablePersistence({ synchronizeTabs: true })
+            .then(() => { persistenciaLocal = true; })
+            .catch((e) => console.warn("Firestore sin persistencia local:", e && e.code));
+
+        // El sw.js es lo que deja abrir la app sin señal. Se había perdido este registro
+        // en enero de 2026 y desde entonces no corría (la historia está en sw.js).
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js')
+                .catch((e) => console.warn("No se pudo registrar sw.js:", e));
+        }
+
         // ─────────────── AUTENTICACIÓN (Firebase Auth) ───────────────
         // Los usuarios se enrolan desde la caja (Python). El email se sintetiza del
         // usuario con la MISMA regla que Python (vqspa.cloud.usuarios.email_de).
@@ -1065,15 +1082,20 @@
         auth.onAuthStateChanged(async (user) => {
             const login = document.getElementById("login-overlay");
             if (user) {
+                // PRIMERO SE ABRE LA APP, DESPUÉS SE PREGUNTA EL ROL. La sesión guardada en
+                // el teléfono basta para trabajar; el rol, en cambio, puede necesitar al
+                // servidor (la credencial dura una hora y al abrir en la mañana ya venció).
+                // Con señal débil esa consulta tarda hasta un minuto en rendirse, y en ese
+                // rato el operador veía la pantalla de ingreso aunque ya estaba adentro.
+                uidActual = user.uid;
+                usuarioActual = user.displayName || (user.email || "").split("@")[0];
+                if (login) login.style.display = "none";
+                if (!_appIniciada) { _appIniciada = true; iniciarListenerPendientes(); pintarBooth(); }
                 try {
                     const t = await user.getIdTokenResult();
                     rolActual = (t.claims && t.claims.rol) || "operador";
                 } catch (e) { rolActual = "operador"; }
                 document.body.classList.toggle("es-admin", rolActual === "administrador");
-                uidActual = user.uid;
-                usuarioActual = user.displayName || (user.email || "").split("@")[0];
-                if (login) login.style.display = "none";
-                if (!_appIniciada) { _appIniciada = true; iniciarListenerPendientes(); pintarBooth(); }
                 refrescarJornada();
             } else {
                 rolActual = null;
@@ -1448,8 +1470,14 @@
             salMensaje("Buscando " + patente + "…");
             let doc;
             try {
-                doc = await db.collection("activos").doc(patente).get();
+                doc = await leerDoc(db.collection("activos").doc(patente));
             } catch (e) {
+                salMensaje("Sin conexión — no se pudo consultar");
+                return;
+            }
+            // Sin señal y sin esa patente guardada, no se sabe si está: decir "no está en el
+            // patio" sería inventarlo.
+            if (!doc.exists && doc.metadata.fromCache) {
                 salMensaje("Sin conexión — no se pudo consultar");
                 return;
             }
@@ -1623,12 +1651,21 @@
         // Sube lo que quedo pendiente. Se llama al abrir la pantalla, al volver la senal y
         // despues de cada registro. En ORDEN: una salida y su reingreso no pueden llegar al
         // reves o el auto quedaria marcado como afuera cuando esta adentro.
+        //
+        // DOS COLAS, Y UNA SALIDA VIAJA POR UNA SOLA. Con la persistencia encendida,
+        // Firestore ya guarda en el teléfono lo que no alcanzó a subir y lo manda en orden.
+        // Por eso, cuando `aTiempo` dice 'en cola', la salida ya está en manos de Firestore
+        // y NO se copia a la cola propia: si viajara por las dos, la copia vieja podría
+        // llegar después de un reingreso y dejar el auto como afuera. La cola propia queda
+        // para lo que Firestore rechazó y para cuando no hay persistencia: ahí lo pendiente
+        // de Firestore muere al cerrar la app, y mandarla dos veces es el mal menor.
         async function salVaciarCola() {
             let cola = salLeerCola();
             if (!cola.length || !navigator.onLine) return;
             while (cola.length) {
                 try {
-                    await salSubir(cola[0]);
+                    const r = await aTiempo(salSubir(cola[0]));
+                    if (r === 'en cola' && !persistenciaLocal) return;   // se reintenta despues
                 } catch (e) {
                     return;                       // sigue sin poder: se reintenta despues
                 }
@@ -1642,8 +1679,9 @@
             try {
                 await salVaciarCola();            // primero lo viejo, para no desordenar
                 if (salLeerCola().length) throw new Error('cola pendiente');
-                await salSubir(mov);
-                return 'guardada';
+                const r = await aTiempo(salSubir(mov));
+                if (r === 'en cola' && !persistenciaLocal) throw new Error('sin persistencia');
+                return r;
             } catch (e) {
                 const cola = salLeerCola();
                 cola.push(mov);
@@ -1910,7 +1948,58 @@
             }
         }
 
-        async function verificarPatente() {
+        // ─── SIN SEÑAL: CONTESTAR CON LO GUARDADO ───
+        // Sin señal, `get()` contesta con lo guardado en el teléfono, pero si nunca vio esa
+        // patente no puede decir que no existe: falla con 'unavailable'. Eso salía como
+        // "Error de conexión" y el operador no podía ni registrar el auto. La consulta por
+        // id sí contesta desde lo guardado, y vacía si no lo tiene: NO REGISTRADO, con el
+        // aviso SIN SEÑAL encima, porque la caja pudo anotarlo y el teléfono no saberlo.
+        //
+        // Y CON TOPE DE ESPERA. Con un registro esperando subir, Firestore reintenta
+        // conectarse una y otra vez, y cada `get()` espera a saber si hay red antes de
+        // contestar con lo guardado: medido sin red, una patente que el teléfono YA tenía
+        // tardó 3,4 s y después 17,5 s. Pasado ESPERA_LECTURA_MS se contesta con lo
+        // guardado. Y si el teléfono sabe que no tiene red, ni se intenta.
+        const ESPERA_LECTURA_MS = 2500;
+        const SIN_DOC = { exists: false, data: () => undefined,
+                          metadata: { fromCache: true, hasPendingWrites: false } };
+        async function servidorOGuardado(delServidor, deLoGuardado, soloGuardado) {
+            if (!soloGuardado && navigator.onLine) {
+                const r = await Promise.race([
+                    delServidor().then((s) => ({ s }), (e) => ({ e })),
+                    new Promise((ok) => setTimeout(() => ok(null), ESPERA_LECTURA_MS)),
+                ]);
+                if (r && r.s) return r.s;
+                if (r && r.e.code !== 'unavailable') throw r.e;
+            }
+            return deLoGuardado();
+        }
+        function leerDoc(ref, soloGuardado) {
+            return servidorOGuardado(() => ref.get(), async () => {
+                const q = await ref.parent
+                    .where(firebase.firestore.FieldPath.documentId(), "==", ref.id)
+                    .get({ source: 'cache' });
+                return q.empty ? SIN_DOC : q.docs[0];
+            }, soloGuardado);
+        }
+        // Las listas (PENDIENTES, ÚLTIMAS SALIDAS): medido con la señal colgada, la de
+        // pendientes tardó 9 s justo después de abrir la app.
+        function leerConsulta(query) {
+            return servidorOGuardado(() => query.get(), () => query.get({ source: 'cache' }));
+        }
+
+        // El aviso de la tarjeta cuando lo que se muestra no viene del servidor.
+        function chipSenal(snap) {
+            const m = snap && snap.metadata;
+            if (!m) return "";
+            if (m.hasPendingWrites) return '<span class="result-chip">EN COLA · sin señal</span>';
+            if (m.fromCache)        return '<span class="result-chip">SIN SEÑAL</span>';
+            return "";
+        }
+
+        // `soloGuardado`: quien llama ya sabe que el servidor no contesta (acaba de
+        // quedar un registro EN COLA) y no tiene sentido volver a esperarlo.
+        async function verificarPatente(soloGuardado) {
             const rawInput = document.getElementById("inputPatente").value.toUpperCase().trim();
             const patente  = rawInput.replace(/-/g, "").replace(/\s+/g, "");
             const display  = document.getElementById("display-resultado");
@@ -1921,8 +2010,16 @@
                 return;
             }
             try {
+                // Las tres lecturas a la vez: sin señal cada una puede esperar su tope, y
+                // en fila serían tres topes seguidos.
+                const [blacklistSnap, frecuentesSnap, doc] = await Promise.all([
+                    leerDoc(db.collection("config").doc("blacklist"), soloGuardado),
+                    leerDoc(db.collection("config").doc("frecuentes"), soloGuardado),
+                    leerDoc(db.collection("activos").doc(patente), soloGuardado),
+                ]);
+                const senal = chipSenal(doc);
+
                 // Blacklist
-                const blacklistSnap = await db.collection("config").doc("blacklist").get();
                 const blacklist = blacklistSnap.exists ? blacklistSnap.data().lista || [] : [];
                 if (blacklist.includes(patente)) {
                     vibrar("blacklist");
@@ -1932,6 +2029,7 @@
                             <h1>PATENTE BLOQUEADA</h1>
                             <h2>No se permite el ingreso</h2>
                             <span class="result-chip">Nos reservamos el derecho de admisión conforme a la normativa vigente.</span>
+                            ${chipSenal(blacklistSnap)}
                             <p style="margin-top:12px;font-size:0.85rem;">
                                 <a href="https://www.bcn.cl/leyfacil/recurso/derecho-de-admision" style="color:#BBDEFB;text-decoration:underline;" target="_blank">Guía BCN</a>
                             </p>
@@ -1942,16 +2040,14 @@
                 }
 
                 // Frecuentes
-                const frecuentesSnap  = await db.collection("config").doc("frecuentes").get();
                 const frecuentesLista = frecuentesSnap.exists ? frecuentesSnap.data().lista || [] : [];
                 const esFrecuente     = frecuentesLista.includes(patente);
-                const doc             = await db.collection("activos").doc(patente).get();
 
                 if (esFrecuente) {
                     vibrar("frecuente");
                     lanzarFlash("flash-frecuente");
                     if (!doc.exists) {
-                        display.innerHTML = `<h1 style="color:#D32F2F;">NO REGISTRADO</h1>
+                        display.innerHTML = `<h1 style="color:#D32F2F;">NO REGISTRADO</h1>${senal}
                             <div id="parecidas-box"></div>`;
                         regCont.style.display = "block";
                         document.getElementById("patenteNueva").value = patente;
@@ -1977,6 +2073,7 @@
                                 <h1>PAGADO</h1>
                                 <h2>TICKET POR MINUTO</h2>
                                 <span class="result-chip">Hora Pago: ${data.hora_pago || '--:--'}</span>
+                                ${senal}
                             </div>`;
                     } else if (tipoDb === "ticket por minuto") {
                         vibrar("pendiente");
@@ -1986,6 +2083,7 @@
                                 <h1>PENDIENTE</h1>
                                 <h2>TICKET MINUTO</h2>
                                 <span class="result-chip">Ingreso: ${data.hora || '--:--'}</span>
+                                ${senal}
                             </div>`;
                     } else if (tipoDb === "pase diario" && paseEstaPagado(data)) {
                         vibrar("pagado");
@@ -1995,6 +2093,7 @@
                                 <h1>PAGADO</h1>
                                 <h2>PASE DIARIO</h2>
                                 <span class="result-chip">Ingreso: ${data.hora || '--:--'}</span>
+                                ${senal}
                             </div>`;
                     } else if (tipoDb === "pase diario") {
                         // Pase diario SIN pagar: el auto entró y la plata no ha entrado.
@@ -2008,12 +2107,14 @@
                                 <h2>PASE DIARIO</h2>
                                 <span class="result-chip">Ingreso: ${data.hora || '--:--'}</span>
                                 <span class="result-chip">COBRAR EN CAJA</span>
+                                ${senal}
                             </div>`;
                     } else {
                         display.innerHTML = `
                             <div class="result-card" style="background:#546E7A;color:white;">
                                 <h2 style="margin:0;">TIPO: ${data.tipo}</h2>
                                 <p>Verifica en administración</p>
+                                ${senal}
                             </div>`;
                     }
                     iniciarBoothCountdown();
@@ -2021,7 +2122,7 @@
                     // El formulario de registro sigue acá y sigue listo: si de verdad no
                     // está, el flujo es el mismo de siempre. Lo que cambia es que ahora el
                     // operador MIRÓ los parecidos antes de decidir, en vez de suponer.
-                    display.innerHTML = `<h1 style="color:#D32F2F;">NO REGISTRADO</h1>
+                    display.innerHTML = `<h1 style="color:#D32F2F;">NO REGISTRADO</h1>${senal}
                         <div id="parecidas-box"></div>`;
                     regCont.style.display = "block";
                     document.getElementById("patenteNueva").value = patente;
@@ -2040,12 +2141,12 @@
             display.innerHTML = "";
             listaDiv.innerHTML = "<p style='color:#8FB7D9;'>Consultando patio...</p>";
             try {
-                const snapshot = await db.collection("activos")
+                const snapshot = await leerConsulta(db.collection("activos")
                     .where("tipo",   "==", "Ticket por Minuto")
-                    .where("status", "==", "Activo")
-                    .get();
-                if (snapshot.empty) { listaDiv.innerHTML = "<p style='color:#FFB300;margin-top:20px;'>NO HAY PENDIENTES</p>"; return; }
-                let html = `<h3 style="color:#8FB7D9;margin-bottom:15px;">TOTAL PENDIENTES: ${snapshot.size}</h3>`;
+                    .where("status", "==", "Activo"));
+                const senal = snapshot.metadata.fromCache ? " · SIN SEÑAL" : "";
+                if (snapshot.empty) { listaDiv.innerHTML = `<p style='color:#FFB300;margin-top:20px;'>NO HAY PENDIENTES${senal}</p>`; return; }
+                let html = `<h3 style="color:#8FB7D9;margin-bottom:15px;">TOTAL PENDIENTES: ${snapshot.size}${senal}</h3>`;
                 snapshot.forEach(doc => {
                     const data = doc.data();
                     html += `<div class="card-pendiente" onclick="seleccionarPatente('${doc.id}')">
@@ -2068,10 +2169,10 @@
             display.innerHTML = "";
             listaDiv.innerHTML = "<p style='color:#00C853;'>Consultando salidas...</p>";
             try {
-                const snapshot = await db.collection("activos")
+                const snapshot = await leerConsulta(db.collection("activos")
                     .where("tipo",   "==", "Ticket por Minuto")
-                    .where("status", "==", "Finalizado")
-                    .get();
+                    .where("status", "==", "Finalizado"));
+                const senal = snapshot.metadata.fromCache ? " · SIN SEÑAL" : "";
                 // SOLO LAS DE HOY. Antes no se filtraba por fecha, y encima se ordenaba por
                 // `hora_pago`, que es la hora SIN el día ("23:50"): un auto de ayer a las
                 // 23:50 le ganaba a uno de hoy a las 09:00. Los de días anteriores llegan
@@ -2085,8 +2186,8 @@
                     .filter(d => (d.data.fecha_salida || d.data.fecha || "") === fechaDeHoy())
                     .sort((a, b) => (b.data.hora_pago || "").localeCompare(a.data.hora_pago || ""))
                     .slice(0, 5);
-                if (!docs.length) { listaDiv.innerHTML = "<p style='color:#FFB300;margin-top:20px;'>NO HAY SALIDAS REGISTRADAS HOY</p>"; return; }
-                let html = `<h3 style="color:#00C853;margin-bottom:15px;">ÚLTIMAS ${docs.length} SALIDAS</h3>`;
+                if (!docs.length) { listaDiv.innerHTML = `<p style='color:#FFB300;margin-top:20px;'>NO HAY SALIDAS REGISTRADAS HOY${senal}</p>`; return; }
+                let html = `<h3 style="color:#00C853;margin-bottom:15px;">ÚLTIMAS ${docs.length} SALIDAS${senal}</h3>`;
                 docs.forEach(item => {
                     const data = item.data;
                     html += `<div class="card-salida" onclick="seleccionarPatente('${item.id}')">
@@ -2574,19 +2675,43 @@
             const ahora = new Date();
             const hora  = ahora.toLocaleTimeString('es-CL');
             const fecha = ahora.toLocaleDateString('es-CL');
+            // SIN SEÑAL, `set()` NO TERMINA NUNCA: su promesa se cumple recién cuando el
+            // servidor confirma. Esperarla dejaba el formulario abierto y quieto, como si no
+            // hubiera pasado nada. El registro ya quedó guardado en el teléfono en el momento
+            // de llamarla y sube solo al volver la señal (la caja lo acepta mientras sea del
+            // mismo día y cobra con esta `hora`, no con la de subida). Se espera un rato
+            // corto y se sigue.
+            let escritura, r;
             try {
-                await db.collection("activos").doc(patente).set({
+                // Una patente con un carácter que Firestore no acepta (una "/") falla acá
+                // mismo, antes de la espera.
+                escritura = db.collection("activos").doc(patente).set({
                     patente, tipo: "Ticket por Minuto", hora, fecha, status: "Activo",
                     operador_uid: uidActual,
                     operador: usuarioActual || "",
                     ingreso_ts: firebase.firestore.FieldValue.serverTimestamp()
                 });
-                registrarIngreso(patente, "Ticket por Minuto", fecha, hora); // atribución (no bloqueante)
-                document.getElementById("registro-container").style.display = "none";
-                await cargarPatentesCache();
-                verificarPatente();
-                document.getElementById("inputPatente").value = "";
-            } catch (e) { alert("Error al guardar"); }
+                r = await aTiempo(escritura);
+            } catch (e) { alert("Error al guardar"); return; }
+            registrarIngreso(patente, "Ticket por Minuto", fecha, hora); // atribución (no bloqueante)
+            // Si el servidor la rechaza cuando por fin llega, que se sepa cuál era: para
+            // entonces el operador ya está con otra patente.
+            if (r === 'en cola') escritura.catch(() => alert("Error al guardar " + patente));
+            document.getElementById("registro-container").style.display = "none";
+            cargarPatentesCache();
+            await verificarPatente(r === 'en cola');
+            document.getElementById("inputPatente").value = "";
+        }
+
+        // Cuánto se espera la confirmación del servidor antes de dar una escritura por
+        // encolada. Pasado esto, Firestore la tiene guardada en el teléfono y la sube sola.
+        const ESPERA_CONFIRMACION_MS = 3000;
+        function aTiempo(escritura) {
+            if (!navigator.onLine) return Promise.resolve('en cola');   // ni hay que esperar
+            return Promise.race([
+                escritura.then(() => 'guardada'),
+                new Promise((r) => setTimeout(() => r('en cola'), ESPERA_CONFIRMACION_MS)),
+            ]);
         }
 
         let patentesActivasCache = [];
