@@ -41,7 +41,7 @@ from playwright.sync_api import sync_playwright, Error as PWError
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 GIT = r"C:\Program Files\Git\cmd\git.exe"
-ARCHIVOS = ["index.html", "sw.js", "manifest.json", "logo.png",
+ARCHIVOS = ["index.html", "sw.js", "manifest.json", "logo.png", "logo_ticket.png",
             "icon-192.png", "icon-512.png", "icon-maskable-192.png",
             "icon-maskable-512.png", "icon-splash-192.png", "icon-splash-512.png"]
 

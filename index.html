@@ -2505,7 +2505,10 @@
         const LOGO_IMG = new Image();
         LOGO_IMG.onload = () => { logoOk = true; };
         LOGO_IMG.onerror = () => { logoOk = false; };
-        LOGO_IMG.src = "logo.png";
+        // El ticket lleva el logo SÓLO DE LÍNEAS Y LETRAS, no el de la pantalla. RawBT pasa
+        // la imagen a puntos, y el paisaje y el mar del logo a color salían como un tablero
+        // gris o como manchas negras. Aprobado por él el 26-10-2026 ("el C").
+        LOGO_IMG.src = "logo_ticket.png";
 
         function abrirPases() {
             const t = document.getElementById('pase-todas'); if (t) t.checked = false;

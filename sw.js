@@ -14,13 +14,15 @@
 // GitHub Pages (max-age=600), así lo publicado se ve al abrir, como hasta ahora. Lo
 // guardado sólo entra si la red falla o se demora más de ESPERA_RED_MS.
 
-const CACHE_NAME = 'verificador-v3';
+const CACHE_NAME = 'verificador-v4';
 
 // Más que esto, mirando una pantalla quieta, el operador cree que el teléfono se colgó.
 const ESPERA_RED_MS = 4000;
 
+// logo_ticket.png va aunque no se vea en pantalla: es el que imprime el ticket, y sin él
+// guardado el ticket sale sin logo cuando no hay señal.
 const PROPIOS = [
-    'index.html', 'manifest.json', 'logo.png',
+    'index.html', 'manifest.json', 'logo.png', 'logo_ticket.png',
     'icon-192.png', 'icon-512.png',
     'icon-maskable-192.png', 'icon-maskable-512.png',
     'icon-splash-192.png', 'icon-splash-512.png',
