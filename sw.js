@@ -14,7 +14,7 @@
 // GitHub Pages (max-age=600), así lo publicado se ve al abrir, como hasta ahora. Lo
 // guardado sólo entra si la red falla o se demora más de ESPERA_RED_MS.
 
-const CACHE_NAME = 'verificador-v4';
+const CACHE_NAME = 'verificador-v5';
 
 // Más que esto, mirando una pantalla quieta, el operador cree que el teléfono se colgó.
 const ESPERA_RED_MS = 4000;
