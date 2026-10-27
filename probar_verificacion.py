@@ -129,6 +129,11 @@ def main():
             como(page, "Marcela")
             consultar(page, "ZZ1001")
             anota("pase pagado: aparece el boton verde", hay(page, ".btn-verificado"))
+            anota("el boton: el check en su circulo a la izquierda y VERIFICAR",
+                  texto_de(page, ".btn-verificado") == "VERIFICAR" and page.evaluate("""() => {
+                      const b = document.querySelector('#display-resultado .btn-verificado');
+                      const c = b.querySelector('.circulo-check'), t = b.querySelector('.txt-verificar');
+                      return c.getBoundingClientRect().right <= t.getBoundingClientRect().left; }"""))
             foto(page, "2 tarjeta con boton")
 
             # 3. El boton abre Observaciones; se guarda con una observacion.

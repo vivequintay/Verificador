@@ -613,11 +613,23 @@
            observación. Verde y ámbar porque son los dos colores que el operador ya lee como
            "todo bien" y "ojo" en este programa. */
         .verif-bloque { margin-top: 16px; display: flex; flex-direction: column; align-items: center; }
+        /* Diseño suyo (27-10-2026): el check a la izquierda, encerrado en un círculo blanco,
+           y después VERIFICAR en blanco. */
         .btn-verificado {
             background: linear-gradient(135deg, #00C853, #00913B);
-            padding: 14px; display: flex; align-items: center; justify-content: center;
+            padding: 16px; display: flex; align-items: center; justify-content: center;
+            gap: 16px;
         }
-        .btn-verificado svg { width: 68px; height: 68px; fill: #fff; }
+        .btn-verificado .circulo-check {
+            width: 56px; height: 56px; flex: 0 0 56px; box-sizing: border-box;
+            border: 3px solid #fff; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .btn-verificado .circulo-check svg { width: 36px; height: 36px; fill: #fff; }
+        .btn-verificado .txt-verificar {
+            color: #fff; font-size: 1.9rem; font-weight: 900; letter-spacing: 1px;
+            text-transform: uppercase;
+        }
         .tag-verificado {
             display: inline-flex; align-items: center; gap: 8px;
             padding: 10px 18px; border-radius: 24px;
@@ -2133,7 +2145,7 @@
             return `<div class="verif-bloque">
                 <button class="btn-verificado" aria-label="Verificar" data-patente="${escHtml(patente)}"
                         data-ingreso="${escHtml(estadiaDe(data))}"
-                        onclick="abrirObservaciones(this.dataset.patente, this.dataset.ingreso)">${ICONO_CHECK}</button>
+                        onclick="abrirObservaciones(this.dataset.patente, this.dataset.ingreso)"><span class="circulo-check">${ICONO_CHECK}</span><span class="txt-verificar">VERIFICAR</span></button>
             </div>`;
         }
 
