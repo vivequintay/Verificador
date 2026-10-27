@@ -32,7 +32,6 @@
         /* ─── Modo sol ─── */
         body.modo-sol { background-color: #EEF4F8; color: #0A2F4F; }
         body.modo-sol .status         { background: #cfe1ee; color: #0A2F4F; }
-        body.modo-sol .brand-spa      { color: rgba(10,47,79,0.45); }
         body.modo-sol h2              { color: #0A2F4F; }
         body.modo-sol .card-pendiente,
         body.modo-sol .card-salida    { background: #d8eaf5; }
@@ -105,8 +104,10 @@
             border-radius: 12px;
             display: block;
         }
+        /* El "SPA" que iba debajo se sacó el 26-10-2026, como del logo: la gente leía "spa".
+           Su aire (10 px) pasa al título para que la línea de abajo no suba. */
         .brand-title {
-            margin: 0 0 4px 0;
+            margin: 0 0 14px 0;
             font-size: 1.65rem;
             font-weight: 900;
             letter-spacing: 3px;
@@ -115,15 +116,6 @@
             -webkit-text-fill-color: transparent;
             background-clip: text;
             filter: drop-shadow(0 0 18px rgba(100,180,100,0.35));
-        }
-        .brand-spa {
-            display: block;
-            font-size: 0.72rem;
-            font-weight: 700;
-            letter-spacing: 9px;
-            color: rgba(255,255,255,0.45);
-            text-transform: uppercase;
-            margin-bottom: 10px;
         }
         h2 {
             color: #8FB7D9;
@@ -181,6 +173,16 @@
             transition: box-shadow 0.2s ease;
         }
         input[type="text"]:focus { box-shadow: 0 0 0 4px rgba(143,183,217,0.22); }
+        /* VERIFICAR SIN PATENTE: el aviso va DENTRO de la caja, no en el panel. Pedido suyo
+           (26-10-2026): abrir la pantalla completa para decir "Ingresa una patente" era una
+           ventana entera para una línea. Rojo y en la misma letra de la patente. */
+        #inputPatente.vacio { border-color: #E53935; animation: sacudir .32s ease; }
+        #inputPatente.vacio::placeholder { color: #E53935; opacity: 1; font-weight: 800; }
+        @keyframes sacudir {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            75% { transform: translateX(6px); }
+        }
 
         /* ─── Buttons ─── */
         button {
@@ -605,6 +607,63 @@
             font-size: 0.95rem;
         }
 
+        /* ─── VERIFICADO EN TERRENO (26-10-2026) ───
+           Bajo la tarjeta de un auto registrado: el botón verde para dejar constancia de que
+           un operador lo vio en el patio o, si alguien ya lo hizo, quién fue y su
+           observación. Verde y ámbar porque son los dos colores que el operador ya lee como
+           "todo bien" y "ojo" en este programa. */
+        .verif-bloque { margin-top: 16px; display: flex; flex-direction: column; align-items: center; }
+        .btn-verificado {
+            background: linear-gradient(135deg, #00C853, #00913B);
+            padding: 14px; display: flex; align-items: center; justify-content: center;
+        }
+        .btn-verificado svg { width: 68px; height: 68px; fill: #fff; }
+        .tag-verificado {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 10px 18px; border-radius: 24px;
+            background: rgba(0,200,83,0.16); border: 2px solid #00C853;
+            color: #00E676; font-weight: 800; font-size: 1.05rem; letter-spacing: 0.5px;
+        }
+        .tag-verificado svg { width: 22px; height: 22px; fill: currentColor; flex: 0 0 auto; }
+        body.modo-sol .tag-verificado { color: #00913B; background: rgba(0,200,83,0.12); }
+        .obs-verificado {
+            display: flex; gap: 10px; align-items: flex-start; align-self: stretch;
+            margin-top: 12px; padding: 12px 14px; border-radius: 14px; text-align: left;
+            background: rgba(255,179,0,0.12); border: 1px solid rgba(255,179,0,0.55);
+            color: #FFD54F; font-size: 1rem; line-height: 1.35; overflow-wrap: anywhere;
+        }
+        .obs-verificado svg { width: 24px; height: 24px; flex: 0 0 24px; fill: currentColor; }
+        .obs-verificado b { display: block; margin-bottom: 2px; }
+        body.modo-sol .obs-verificado { color: #8A5A00; background: rgba(255,179,0,0.16); }
+
+        /* Encima del panel de resultado (1000) y del de salidas (1100); debajo de los
+           destellos de color, que no se cruzan con esta ventana. */
+        #modal-obs {
+            display: none; position: fixed; inset: 0; z-index: 1200;
+            background: rgba(3,14,24,0.72); align-items: center; justify-content: center;
+            padding: 20px;
+        }
+        #modal-obs .caja-obs {
+            width: 100%; max-width: 420px; background: #0E3D62; border-radius: 18px;
+            padding: 20px; box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+        }
+        #modal-obs h3 { margin: 0 0 12px 0; color: #fff; font-size: 1.35rem; font-weight: 800; }
+        #obs-texto {
+            width: 100%; box-sizing: border-box; min-height: 110px; resize: vertical;
+            padding: 12px 14px; border-radius: 12px; border: 2px solid #8FB7D9;
+            background: #fdfdfd; color: #222; font-family: 'Inter', 'Segoe UI', sans-serif;
+            font-size: 1.1rem; outline: none;
+        }
+        #obs-error { color: #FF8A80; font-weight: 700; min-height: 1.2em; margin: 8px 0 0 0; }
+        #modal-obs .obs-acciones { display: flex; gap: 10px; margin-top: 10px; }
+        #modal-obs .obs-acciones button { padding: 16px; font-size: 1.1rem; }
+        #obs-cancelar { background: rgba(255,255,255,0.12); color: #fff; }
+        #obs-guardar  { background: #00C853; color: #062436; }
+        #obs-guardar:disabled { opacity: 0.6; }
+        body.modo-sol #modal-obs .caja-obs { background: #FFFFFF; }
+        body.modo-sol #modal-obs h3 { color: #0A2F4F; }
+        body.modo-sol #obs-cancelar { background: #E3EDF5; color: #0A2F4F; }
+
         /* ─── List cards ─── */
         .card-pendiente {
             background: #0D3B5C;
@@ -875,7 +934,6 @@
                     title="Cerrar sesión"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg></button>
         </div>
         <h2 class="brand-title">VIVE QUINTAY</h2>
-        <span class="brand-spa">SPA</span>
         <span class="status">
             <span class="status-dot" id="connectivity-dot"></span>
             VERIFICACIÓN DE PATENTES
@@ -934,6 +992,20 @@
             </div>
         </div>
         <button id="btn-salir-panel" onclick="cerrarPanelResultado()">SALIR</button>
+    </div>
+
+    <!-- Al tocar el botón verde: la observación es OPCIONAL. GUARDAR con la caja vacía
+         igual deja el auto verificado. -->
+    <div id="modal-obs">
+        <div class="caja-obs">
+            <h3>Observaciones</h3>
+            <textarea id="obs-texto" maxlength="200"></textarea>
+            <p id="obs-error"></p>
+            <div class="obs-acciones">
+                <button id="obs-cancelar" onclick="cerrarObservaciones()">CANCELAR</button>
+                <button id="obs-guardar" onclick="guardarVerificacion()">GUARDAR</button>
+            </div>
+        </div>
     </div>
 
     <!-- Confirmación al tocar una patente parecida. Las tarjetas son grandes para poder
@@ -1307,12 +1379,15 @@
 
         window.addEventListener("popstate", () => {
             if (!panelRes.classList.contains("visible")) return;
+            cerrarObservaciones();             // el gesto de volver no deja la ventana colgando
             panelRes.classList.remove("visible");
             limpiar();
         });
 
         document.addEventListener("keydown", (e) => {
-            if (e.key === "Escape") cerrarPanelResultado();
+            if (e.key !== "Escape") return;
+            if (obsPendiente) { cerrarObservaciones(); return; }
+            cerrarPanelResultado();
         });
 
         new MutationObserver(() => {
@@ -1992,6 +2067,129 @@
 
         // `soloGuardado`: quien llama ya sabe que el servidor no contesta (acaba de
         // quedar un registro EN COLA) y no tiene sentido volver a esperarlo.
+        // VERIFICAR SIN PATENTE: el aviso queda dentro de la caja de texto, en rojo, y se va
+        // en cuanto se escribe. Antes abría el panel a pantalla completa para una línea.
+        const PLACEHOLDER_PATENTE = "BUSCAR PATENTE";
+        function avisarPatenteVacia() {
+            const inp = document.getElementById("inputPatente");
+            inp.value = "";
+            inp.classList.remove("vacio");
+            void inp.offsetWidth;                 // para que la sacudida corra cada vez
+            inp.classList.add("vacio");
+            inp.placeholder = "INGRESA UNA PATENTE";
+            vibrar("blacklist");
+            inp.focus();
+        }
+        document.getElementById("inputPatente").addEventListener("input", (e) => {
+            if (!e.target.classList.contains("vacio")) return;
+            e.target.classList.remove("vacio");
+            e.target.placeholder = PLACEHOLDER_PATENTE;
+        });
+
+        // ════════════ VERIFICADO EN TERRENO (pedido suyo del 26-10-2026) ════════════
+        //
+        //  Los operadores recorren el patio mirando patentes. Hasta ahora, de lo que veían
+        //  no quedaba nada: el botón verde deja constancia de que ESE auto está adentro,
+        //  quién lo vio y, si quiere, una observación ("ventana abierta", "choque previo").
+        //  El siguiente operador que lo consulte lo ve, y la caja también, en vivo.
+        //
+        //  Viaja en el mismo documento del auto (`activos/<patente>.verificacion`), como la
+        //  salida de terreno: la caja ya escucha esa colección y no hace falta otra.
+        //
+        //  VALE PARA ESTA ESTADÍA Y NADA MÁS. Lleva la fecha y hora de INGRESO del auto que
+        //  se verificó (`ingreso`), y sólo se muestra si calza con el ingreso actual. Si el
+        //  auto sale y vuelve a entrar, la caja reescribe el documento con otra hora y la
+        //  verificación vieja deja de contar sola, sin que nadie tenga que acordarse de
+        //  borrarla.
+        const ICONO_CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+        const ICONO_OBS = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>';
+
+        function escHtml(s) {
+            return String(s == null ? "" : s).replace(/[&<>"']/g, (c) =>
+                ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+        }
+
+        function estadiaDe(data) {
+            return `${(data && data.fecha) || ""} ${(data && data.hora) || ""}`.trim();
+        }
+
+        function verificacionVigente(data) {
+            const v = data && data.verificacion;
+            if (!v || !v.por) return null;
+            return v.ingreso === estadiaDe(data) ? v : null;
+        }
+
+        // Lo que va bajo la tarjeta. Todo lo que escribió un operador pasa por `escHtml`:
+        // la observación se pinta en el teléfono de OTRO operador y en la caja.
+        function bloqueVerificacion(patente, data) {
+            const v = verificacionVigente(data);
+            if (v) {
+                const obs = String(v.obs || "").trim();
+                return `<div class="verif-bloque">
+                    <span class="tag-verificado">${ICONO_CHECK}VERIFICADO · ${escHtml(v.por)} · ${escHtml(v.hora)}</span>
+                    ${obs ? `<div class="obs-verificado">${ICONO_OBS}<span><b>Observación</b>${escHtml(obs)}</span></div>` : ""}
+                </div>`;
+            }
+            return `<div class="verif-bloque">
+                <button class="btn-verificado" aria-label="Verificar" data-patente="${escHtml(patente)}"
+                        data-ingreso="${escHtml(estadiaDe(data))}"
+                        onclick="abrirObservaciones(this.dataset.patente, this.dataset.ingreso)">${ICONO_CHECK}</button>
+            </div>`;
+        }
+
+        let obsPendiente = null;          // { patente, ingreso } mientras la ventana está abierta
+
+        function abrirObservaciones(patente, ingreso) {
+            // En modo caseta el resultado se borra solo a los 3,5 s: tocar el botón verde
+            // lo detiene, o la pantalla se iría mientras escribe la observación.
+            if (boothTimer) { clearTimeout(boothTimer); boothTimer = null; }
+            const cd = document.querySelector("#display-resultado .booth-countdown");
+            if (cd) cd.remove();
+            obsPendiente = { patente, ingreso };
+            document.getElementById("obs-texto").value = "";
+            document.getElementById("obs-error").textContent = "";
+            document.getElementById("obs-guardar").disabled = false;
+            document.getElementById("modal-obs").style.display = "flex";
+            setTimeout(() => document.getElementById("obs-texto").focus(), 60);
+        }
+
+        function cerrarObservaciones() {
+            document.getElementById("modal-obs").style.display = "none";
+            obsPendiente = null;
+        }
+
+        async function guardarVerificacion() {
+            const p = obsPendiente;
+            if (!p) return;
+            const error = document.getElementById("obs-error");
+            if (!uidActual) { error.textContent = "Tu sesión expiró. Vuelve a iniciar sesión."; return; }
+            const btn = document.getElementById("obs-guardar");
+            btn.disabled = true;
+            const escritura = db.collection("activos").doc(p.patente).update({
+                verificacion: {
+                    por: usuarioActual || "",
+                    uid: uidActual,
+                    hora: _hm(new Date()),
+                    fecha: fechaDeHoy(),
+                    obs: document.getElementById("obs-texto").value.trim().slice(0, 200),
+                    ingreso: p.ingreso,
+                },
+            });
+            let r;
+            try {
+                r = await aTiempo(escritura);
+            } catch (e) {
+                error.textContent = "Error al guardar";
+                btn.disabled = false;
+                return;
+            }
+            // Como en el registro: si queda en cola y el servidor la rechaza al llegar, que
+            // se sepa cuál era, porque para entonces el operador ya está con otro auto.
+            if (r === 'en cola') escritura.catch(() => alert("Error al guardar " + p.patente));
+            cerrarObservaciones();
+            await verificarPatente(r === 'en cola');
+        }
+
         async function verificarPatente(soloGuardado) {
             const rawInput = document.getElementById("inputPatente").value.toUpperCase().trim();
             const patente  = rawInput.replace(/-/g, "").replace(/\s+/g, "");
@@ -1999,7 +2197,7 @@
             const regCont  = document.getElementById("registro-container");
             document.getElementById("lista-pendientes").innerHTML = "";
             if (!patente) {
-                display.innerHTML = "<p style='color:#FFB300;'>Ingresa una patente</p>";
+                avisarPatenteVacia();
                 return;
             }
             try {
@@ -2109,6 +2307,11 @@
                                 <p>Verifica en administración</p>
                                 ${senal}
                             </div>`;
+                    }
+                    // Un ticket ya pagado y FINALIZADO es un auto que se fue: no hay nada
+                    // que verificar en el patio.
+                    if (statusDb !== "finalizado") {
+                        display.insertAdjacentHTML("beforeend", bloqueVerificacion(patente, data));
                     }
                     iniciarBoothCountdown();
                 } else {
