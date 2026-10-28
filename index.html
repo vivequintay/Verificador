@@ -904,6 +904,31 @@
         <h2 class="splash-title">VIVE QUINTAY</h2>
     </div>
 
+    <!-- Fuera del parking (ver ZONA_CENTRO). Encima de todo salvo el splash: también de
+         los modales (.rmodal, 99990), que de otro modo quedarían a la vista. -->
+    <style>
+        #zona-capa {
+            display: none; position: fixed; inset: 0; z-index: 99995;
+            flex-direction: column; align-items: center; justify-content: center;
+            gap: 26px; padding: 24px;
+            background: radial-gradient(ellipse at center, #0E3D62 0%, #061D31 100%);
+        }
+        #zona-capa .zona-logo { width: 120px; height: 120px; border-radius: 50%; }
+        #zona-capa[data-estado="buscando"] .zona-logo { animation: zonaLatido 1.6s ease-in-out infinite; }
+        @keyframes zonaLatido { 50% { opacity: .55; transform: scale(.94); } }
+        #zona-texto {
+            font-size: 1.85rem; font-weight: 900; letter-spacing: 3px;
+            color: #fff; text-align: center; line-height: 1.25;
+        }
+        #zona-capa[data-estado="fuera"] #zona-texto { color: #FF8A80; }
+        #zona-capa .btn-esquina { position: absolute; top: 16px; right: 16px; }
+    </style>
+    <div id="zona-capa">
+        <button class="btn-esquina" onclick="cerrarSesion()" title="Cerrar sesión"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg></button>
+        <img src="icon-512.png" class="zona-logo" alt="Logo">
+        <div id="zona-texto"></div>
+    </div>
+
     <!-- Botón modo sol -->
 
     <!-- Flash overlays -->
@@ -1156,7 +1181,8 @@
 
         const emailDeUsuario = (u) => (u || "").trim().toLowerCase() + DOMINIO_AUTH;
 
-        auth.onAuthStateChanged(async (user) => {
+        // Con nombre, para que probar_zona.py pueda entrar con un usuario simulado.
+        async function alCambiarSesion(user) {
             const login = document.getElementById("login-overlay");
             if (user) {
                 // PRIMERO SE ABRE LA APP, DESPUÉS SE PREGUNTA EL ROL. La sesión guardada en
@@ -1168,11 +1194,15 @@
                 usuarioActual = user.displayName || (user.email || "").split("@")[0];
                 if (login) login.style.display = "none";
                 if (!_appIniciada) { _appIniciada = true; iniciarListenerPendientes(); pintarBooth(); }
+                zonaConSesion(user.uid);
+                let rolDelServidor = false;
                 try {
                     const t = await user.getIdTokenResult();
                     rolActual = (t.claims && t.claims.rol) || "operador";
+                    rolDelServidor = true;
                 } catch (e) { rolActual = "operador"; }
                 document.body.classList.toggle("es-admin", rolActual === "administrador");
+                zonaConRol(user.uid, rolActual, rolDelServidor);
                 refrescarJornada();
             } else {
                 rolActual = null;
@@ -1180,9 +1210,11 @@
                 usuarioActual = null;
                 jornadaActual = null; _pintarBotonJornada();
                 document.body.classList.remove("es-admin");
+                zonaSinSesion();
                 if (login) { login.style.display = "flex"; }
             }
-        });
+        }
+        auth.onAuthStateChanged(alCambiarSesion);
 
         async function iniciarSesion() {
             const u   = document.getElementById("login-user").value;
@@ -1208,6 +1240,196 @@
         }
 
         function cerrarSesion() { try { auth.signOut(); } catch (e) {} }
+
+        // ─────────────── SÓLO DENTRO DEL PARKING ───────────────
+        // Pedido suyo (28-10-2026): no todos los operadores van los mismos días y, desde la
+        // casa, igual podían ver qué patentes hay y cuáles se verificaron. Ahora la app sólo
+        // funciona a menos de ZONA_RADIO_M del centro del parking; más allá, una capa tapa
+        // todo y dice FUERA DE RANGO. SIN MARGEN, decisión suya: salir del círculo bloquea
+        // en la lectura siguiente. El administrador no pasa por esto (ni se le pide la
+        // ubicación).
+        //
+        // ES UN CANDADO DE LA PANTALLA, NO DE LA NUBE: las reglas de Firestore no saben dónde
+        // está el teléfono. Alcanza para el operador; no para quien sepa programar.
+        //
+        // La ubicación NO se guarda ni sale del teléfono: se compara aquí y se olvida. El GPS
+        // no necesita señal de datos, así que esto funciona igual sin internet.
+        const ZONA_CENTRO = { lat: -33.194690, lon: -71.699389 };   // el punto que marcó él en Google Maps
+        const ZONA_RADIO_M = 400;
+        // Si al abrir no llega en este plazo una lectura que sirva, se pide la ubicación.
+        const ZONA_ESPERA_MS = 30000;
+        // Chrome avisa cuando la posición cambia; con el teléfono quieto puede no avisar
+        // nada. Por eso, mientras la app está a la vista, una lectura nueva cada minuto.
+        const ZONA_SONDEO_MS = 60000;
+        // Al volver de otra app (RawBT, la cámara) la última lectura vale si es así de
+        // reciente; si no, se tapa hasta tener una nueva.
+        const ZONA_VIGENCIA_MS = 60000;
+        // Con la ubicación del teléfono apagada se reintenta así de seguido, para que al
+        // encenderla la app se destape sola, sin tener que salir y volver.
+        const ZONA_REINTENTO_MS = 5000;
+
+        let zonaEstado = null;   // null (no aplica) · buscando · dentro · fuera · sin_ubicacion
+        let zonaUid = null;
+        let zonaVigilando = false;
+        let zonaWatch = null, zonaSondeo = null, zonaPlazo = null;
+        let zonaUltima = 0;      // cuándo llegó la última lectura que decidió algo
+        let zonaPedida = 0;      // cuándo se pidió la última lectura
+        let zonaApagada = false; // el último aviso fue "ubicación apagada"
+        let zonaConfirmando = false;
+
+        function distanciaM(lat1, lon1, lat2, lon2) {
+            const R = 6371008.8, rad = Math.PI / 180;
+            const dLat = (lat2 - lat1) * rad, dLon = (lon2 - lon1) * rad;
+            const a = Math.sin(dLat / 2) ** 2
+                    + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) ** 2;
+            return 2 * R * Math.asin(Math.sqrt(a));
+        }
+
+        // 'dentro', 'fuera' o null cuando la lectura no alcanza para decidir. Una lectura con
+        // un error mayor que el radio (ubicación por antena, o la "aproximada" de Android)
+        // no sirve para decir que está dentro; sí para decir que está fuera si, aun con todo
+        // ese error, el círculo queda lejos.
+        function zonaClasificar(lat, lon, precision) {
+            const d = distanciaM(ZONA_CENTRO.lat, ZONA_CENTRO.lon, lat, lon);
+            if (precision <= ZONA_RADIO_M) return d <= ZONA_RADIO_M ? "dentro" : "fuera";
+            return d - precision > ZONA_RADIO_M ? "fuera" : null;
+        }
+
+        function zonaPintar(estado) {
+            zonaEstado = estado;
+            const capa = document.getElementById("zona-capa");
+            const tapa = !!estado && estado !== "dentro";
+            capa.dataset.estado = estado || "";
+            capa.style.display = tapa ? "flex" : "none";
+            document.getElementById("zona-texto").textContent =
+                estado === "fuera" ? "FUERA DE RANGO"
+                : estado === "sin_ubicacion" ? "ACTIVA LA UBICACIÓN" : "";
+            // Que el teclado no quede abierto sobre la capa escribiendo en una caja tapada.
+            if (tapa && document.activeElement && document.activeElement !== document.body) {
+                document.activeElement.blur();
+            }
+        }
+
+        function zonaLectura(pos) {
+            if (!zonaVigilando) return;
+            // Cualquier lectura, aunque no alcance para decidir, prueba que la ubicación anda.
+            zonaApagada = false;
+            zonaConfirmando = false;
+            const c = pos.coords;
+            const r = zonaClasificar(c.latitude, c.longitude, c.accuracy);
+            if (!r) return;
+            zonaUltima = Date.now();
+            clearTimeout(zonaPlazo);
+            zonaPintar(r);
+        }
+
+        function zonaError(e) {
+            if (!zonaVigilando || !e) return;
+            // 3: se demoró, lo que no dice nada; la espera al abrir ya tiene su propio plazo.
+            if (e.code === 1) {                       // sin permiso
+                // Sin reintentos seguidos: con el permiso en "preguntar", cada pedido es un
+                // diálogo. Se vuelve a pedir al volver a la app o con el sondeo de cada minuto.
+                zonaApagada = false;
+                clearTimeout(zonaPlazo);
+                zonaPintar("sin_ubicacion");
+            } else if (e.code === 2) {                // la ubicación del teléfono está apagada
+                zonaApagada = true;
+                // Chrome también lo avisa en un tropiezo del GPS, con la lectura buena justo
+                // detrás. Al que está dentro no se le tapa por un aviso suelto: se pide otra
+                // lectura, y si ésa también falla, la ubicación está apagada de verdad.
+                if (zonaEstado === "dentro" && !zonaConfirmando) {
+                    zonaConfirmando = true;
+                    zonaPedirLectura();
+                    return;
+                }
+                zonaConfirmando = false;
+                clearTimeout(zonaPlazo);
+                zonaPintar("sin_ubicacion");
+            }
+        }
+
+        // Una lectura nueva. Se rehace el seguimiento en vez de pedir una lectura suelta: en
+        // el Chrome de las pruebas, con un seguimiento vivo y la ubicación quieta, la suelta
+        // no contesta nunca; el seguimiento nuevo, en cambio, parte con la posición de ese
+        // momento. De paso revive uno que murió (tras un "sin permiso", o con la app atrás).
+        function zonaPedirLectura() {
+            zonaPedida = Date.now();
+            if (zonaWatch !== null) navigator.geolocation.clearWatch(zonaWatch);
+            zonaWatch = navigator.geolocation.watchPosition(zonaLectura, zonaError,
+                { enableHighAccuracy: true, maximumAge: 0 });
+        }
+
+        // Tapa hasta que llegue una lectura que decida.
+        function zonaBuscar() {
+            zonaPintar("buscando");
+            clearTimeout(zonaPlazo);
+            zonaPlazo = setTimeout(() => {
+                if (zonaVigilando && zonaEstado === "buscando") zonaPintar("sin_ubicacion");
+            }, ZONA_ESPERA_MS);
+        }
+
+        function zonaVigilar() {
+            if (zonaVigilando) return;
+            zonaVigilando = true;
+            if (!navigator.geolocation) { zonaPintar("sin_ubicacion"); return; }
+            zonaBuscar();
+            zonaPedirLectura();
+            zonaSondeo = setInterval(() => {
+                if (document.hidden) return;
+                const cada = zonaEstado === "sin_ubicacion" && zonaApagada ? ZONA_REINTENTO_MS : ZONA_SONDEO_MS;
+                if (Date.now() - zonaPedida >= cada) zonaPedirLectura();
+            }, 1000);
+        }
+
+        function zonaDetener() {
+            zonaVigilando = false;
+            if (zonaWatch !== null && navigator.geolocation) navigator.geolocation.clearWatch(zonaWatch);
+            zonaWatch = null;
+            clearInterval(zonaSondeo);
+            clearTimeout(zonaPlazo);
+            zonaApagada = false;
+            zonaConfirmando = false;
+            zonaPintar(null);
+        }
+
+        function zonaRolGuardado(uid) {
+            try { return localStorage.getItem("zona_rol_" + uid); } catch (e) { return null; }
+        }
+
+        // Con la sesión, antes de saber el rol: se decide con el que tuvo la última vez,
+        // porque con señal débil la consulta del rol tarda hasta un minuto. La primera vez
+        // en este teléfono se tapa sin pedir la ubicación (no se le pide al administrador);
+        // esa vez hay señal, porque se acaba de iniciar sesión, y el rol llega al tiro.
+        function zonaConSesion(uid) {
+            zonaUid = uid;
+            const previo = zonaRolGuardado(uid);
+            if (previo === "administrador") zonaDetener();
+            else if (previo) zonaVigilar();
+            else if (!zonaVigilando) zonaPintar("buscando");
+        }
+
+        // `delServidor` falso: no se pudo preguntar (sin señal) y `rol` es el de reemplazo;
+        // manda el que tuvo la última vez, para no bloquear al administrador sin señal.
+        function zonaConRol(uid, rol, delServidor) {
+            if (uid !== zonaUid) return;   // la sesión cambió mientras se preguntaba
+            if (delServidor) {
+                try { localStorage.setItem("zona_rol_" + uid, rol); } catch (e) {}
+            } else {
+                rol = zonaRolGuardado(uid) || rol;
+            }
+            if (rol === "administrador") zonaDetener(); else zonaVigilar();
+        }
+
+        function zonaSinSesion() {
+            zonaUid = null;
+            zonaDetener();
+        }
+
+        document.addEventListener("visibilitychange", () => {
+            if (document.hidden || !zonaVigilando || !navigator.geolocation) return;
+            if (Date.now() - zonaUltima > ZONA_VIGENCIA_MS) zonaBuscar();
+            zonaPedirLectura();
+        });
 
         // ─── Splash screen ───
         const SPLASH_INACTIVITY_MS = 5 * 60 * 1000; // despertar tras 5 min → re-mostrar
